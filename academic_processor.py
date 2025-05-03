@@ -15,6 +15,8 @@ import time
 import sys
 import os
 from collections import Counter
+import PyPDF2
+from mistral import MistralAPI  # Ensure this import is at the top of your file
 
 
 # Import configuration
@@ -36,7 +38,7 @@ TOTAL_TIME_SECONDS = TOTAL_TIME_MINUTES * 60  # Convert to seconds
 # Safety parameters for API fair use
 MIN_SECONDS_BETWEEN_CALLS = 20  # Minimum seconds between calls to respect API limits
 SAFETY_FACTOR = 3  # Additional safety margin for timing
-MAX_CALLS_PER_MINUTE = 3  # Conservative maximum call rate
+MAX_CALLS_PER_MINUTE = 121  # Conservative maximum call rate
 
 # We'll dynamically calculate the delay in the process_academic_papers function
 # based on the actual number of keywords to process
@@ -94,206 +96,8 @@ def ensure_str(value, default=""):
     except (ValueError, TypeError):
         return default
 
-def call_perplexity_api(prompt, model="mixtral-8x7b-instruct", system_prompt="write a concise executive summary for the academic paper using the title, authorname websearch. Cite all sources and link to those",
-                        temperature=0.2, max_tokens=200, timeout=50, web_search=True):
-    """
-    Unified function to call Perplexity API with standard requests library.
-
-    Args:
-        prompt (str): The user prompt
-        model (str): Model name to use (sonar-small-chat, sonar-medium-chat,
-                    mixtral-8x7b-instruct, mistral-7b-instruct, llama-3-8b-instruct)
-        system_prompt (str): Optional system prompt
-        temperature (float): Controls randomness (0.0-1.0)
-        max_tokens (int): Maximum tokens to generate
-        timeout (int): Request timeout in seconds
-        web_search (bool): Whether to enable web search capability
-
-    Returns:
-        str: Generated text or None if failed
-    """
 
 
-    # Get API key from environment
-    api_key = os.getenv("PERPLEXITY_API_KEY")
-    if not api_key:
-        logging.warning("No Perplexity API key found in environment variables")
-        return None
-
-    # Apply rate limiting
-    global last_perplexity_api_call
-    current_time = time.time()
-
-    # Ensure at least 2 seconds between calls (conservative rate limit)
-    if hasattr(last_perplexity_api_call, "__int__") and current_time - last_perplexity_api_call < 2:
-        time.sleep(2 - (current_time - last_perplexity_api_call))
-
-    # Update last call time
-    last_perplexity_api_call = time.time()
-
-    try:
-        # Prepare messages
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-
-        # Setup payload according to current API standards
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens
-        }
-
-        # Add web search capabilities if requested
-        if web_search:
-            # Use model with online capabilities
-            payload["model"] = "mixtral-8x7b-online"
-            # According to docs, these parameters enable web browsing
-            payload["context_level"] = 5
-            payload["enable_citations"] = True
-
-        # Setup headers
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-
-        # Make the API request
-        response = requests.post(
-            "https://api.perplexity.ai/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=timeout
-        )
-
-        # Check for successful response
-        response.raise_for_status()
-        response_data = response.json()
-
-        # Log response status
-        logging.info(f"Perplexity API request successful")
-
-        if response_data and 'choices' in response_data and response_data['choices']:
-            return response_data['choices'][0]['message']['content'].strip()
-
-        logging.error("Empty response from Perplexity API")
-        return None
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Error calling Perplexity API: {str(e)}")
-        return None
-    except Exception as e:
-        logging.error(f"Unexpected error calling Perplexity API: {str(e)}")
-        return None
-
-def generate_ai_abstract(paper):
-    """
-    Generate an abstract using the Perplexity API when one is not available.
-    Sends the paper URL to Perplexity to enable it to access and process information
-    from the source page and any linked documents.
-    """
-    try:
-        # Gather available metadata
-        title = ensure_str(paper.get("title", ""))
-        authors = ensure_str(paper.get("authors_formatted", ""))
-        year = ensure_str(paper.get("year", ""))
-        venue = ensure_str(paper.get("venue", ""))
-        fields = paper.get("fieldsOfStudy", [])
-        paper_url = ensure_str(paper.get("url", ""))
-        paper_id = ensure_str(paper.get("paperId", ""))
-        citation_count = ensure_str(paper.get("citationCount", "Unknown"))
-
-        # Create a prompt for Perplexity that includes the paper URL
-        prompt = f"""
-        Your task is to generate a comprehensive academic abstract for the following research paper.
-
-        Paper metadata:
-        Title: {title}
-        Authors: {authors}
-        Year: {year}
-        Venue: {venue}
-        Fields of Study: {', '.join(ensure_str(f) for f in fields) if fields else 'Not specified'}
-        Citations: {citation_count}
-        Paper ID: {paper_id}
-
-        Paper URL: {paper_url}
-
-        IMPORTANT INSTRUCTIONS:
-        Based on this metadata, generate a detailed academic-style abstract (200-300 words) that accurately captures:
-        - The paper's likely purpose and research questions
-        - The methodology that might have been used
-        - The possible main findings or results
-        - The potential significance or implications of the work
-
-        Write in a formal academic style appropriate for the field. Do not invent specific results if they are not available.
-        Begin directly with the abstract text without any preambles.
-        """
-
-        # Try the web-enabled version first (if URL is provided)
-        if paper_url:
-            # Use the unified function with web search capability
-            abstract = call_perplexity_api(
-                prompt=prompt,
-                model="mixtral-8x7b-instruct",  # Will be overridden to online version
-                system_prompt="You are an academic research assistant with expertise in generating comprehensive paper abstracts. You have the ability to visit URLs and analyze their content to produce accurate summaries. Us the title, publication date, URL and Title to search for more information on this paper, ideally its abstract and provide or summarize it.",
-                temperature=0.2,
-                max_tokens=1000,
-                timeout=60,
-                web_search=True
-            )
-
-            if abstract:
-                # Validate the generated abstract
-                if len(abstract) > 50 and not abstract.startswith("Error") and not abstract.startswith("I apologize"):
-                    logging.info(f"Successfully generated abstract with web search for: {title}")
-                    # Add attribution
-                    if len(abstract) > 700:  # If it's too long, trim it
-                        abstract = abstract[:700] + "..."
-                    return abstract + " [AI-generated by Perplexity based on paper content]"
-                else:
-                    logging.warning(f"Generated abstract was too short or contained error message for: {title}")
-
-        # If web search failed or URL wasn't provided, try the standard model
-        simplified_prompt = f"""
-        Create a concise academic abstract (200-250 words) for the following paper:
-
-        Title: {title}
-        Authors: {authors}
-        Year: {year}
-        Venue: {venue}
-        Fields of Study: {', '.join(ensure_str(f) for f in fields) if fields else 'Not specified'}
-        Paper ID: {paper_id}
-
-        Generate an academic abstract that covers the likely purpose, methodology, and potential contributions of the paper to the field.
-        """
-
-        abstract = call_perplexity_api(
-            prompt=simplified_prompt,
-            model="mistral-7b-instruct",  # Use smaller model for efficiency
-            system_prompt="You are an academic assistant that creates concise, factual abstracts for research papers based on their metadata.",
-            temperature=0.2,
-            max_tokens=350,
-            timeout=40
-        )
-
-        if abstract:
-            # Validate the generated abstract
-            if len(abstract) > 50 and not abstract.startswith("Error") and not abstract.startswith("I apologize"):
-                logging.info(f"Successfully generated abstract with standard model for: {title}")
-                return abstract + " [AI-generated by Perplexity]"
-            else:
-                logging.warning(f"Generated abstract was too short or contained error message for: {title}")
-
-        # If all API attempts failed, use the fallback method
-        logging.info(f"Falling back to rule-based abstract generation for: {title}")
-        return generate_fallback_abstract(paper)
-
-    except Exception as e:
-        logging.error(f"Error generating AI abstract: {e}")
-        debug_print(f"Error generating AI abstract: {e}", 1)
-        return generate_fallback_abstract(paper)
 
 def generate_fallback_abstract(paper):
     """Generate a more sophisticated fallback abstract when API calls fail."""
@@ -354,7 +158,7 @@ def extract_first_paragraph_from_pdf(pdf_url):
         debug_print(f"Attempting to extract text from PDF: {pdf_url}", 2)
 
         # Download PDF
-        response = requests.get(pdf_url, timeout=70)
+        response = requests.get(pdf_url, timeout=120)
         file = io.BytesIO(response.content)
 
         # Extract text from first page
@@ -727,6 +531,59 @@ def enrich_paper_data(paper):
     }
 
     return paper
+
+def generate_ai_abstract(paper):
+    """
+    Generate an abstract for an academic paper using the Mistral API.
+    Uses all available metadata and the paper's URL to prompt the API.
+    Returns the generated abstract as a string, or None if generation fails.
+    """
+    try:
+        # Gather metadata
+        title = ensure_str(paper.get("title", ""))
+        authors = ensure_str(paper.get("authors_formatted", ""))
+        year = ensure_str(paper.get("year", ""))
+        venue = ensure_str(paper.get("venue", ""))
+        fields = paper.get("fieldsOfStudy", [])
+        paper_url = ensure_str(paper.get("url", ""))
+        citation_count = ensure_str(paper.get("citationCount", "Unknown"))
+
+        # Compose a prompt for the Mistral API
+        prompt = (
+            f"Generate a comprehensive academic abstract (200-300 words) for the following research paper.\n\n"
+            f"Paper metadata:\n"
+            f"Title: {title}\n"
+            f"Authors: {authors}\n"
+            f"Year: {year}\n"
+            f"Venue: {venue}\n"
+            f"Fields of Study: {', '.join(ensure_str(f) for f in fields) if fields else 'Not specified'}\n"
+            f"Citations: {citation_count}\n"
+            f"URL: {paper_url}\n\n"
+            f"Instructions:\n"
+            f"- Use any available information from the metadata and the URL (if accessible) to generate the abstract.\n"
+            f"- The abstract should cover the likely purpose, methodology, main findings, and significance of the work.\n"
+            f"- Write in a formal academic style. Do not invent specific results if they are not available.\n"
+            f"- Begin directly with the abstract text, no preambles or section headers.\n"
+        )
+
+        # Call the Mistral API
+        mistral_api = MistralAPI()
+        abstract = mistral_api.generate_summary(prompt, max_tokens=350)
+
+        # Validate and return the abstract
+        if abstract and len(abstract) > 50 and not abstract.lower().startswith("error") and not abstract.lower().startswith("i apologize"):
+            logging.info(f"Successfully generated abstract with Mistral API for: {title}")
+            # Optionally trim if too long
+            if len(abstract) > 700:
+                abstract = abstract[:700] + "..."
+            return abstract + " [AI-generated by Mistral]"
+        else:
+            logging.warning(f"Generated abstract was too short or contained error message for: {title}")
+            return None
+
+    except Exception as e:
+        logging.error(f"Error generating AI abstract with Mistral: {e}")
+        return None
 
 def process_academic_papers(days_lookback=3, process_all=False): #changed from True to False
     """

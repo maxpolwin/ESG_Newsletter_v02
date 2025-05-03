@@ -41,14 +41,9 @@ from html_generator import generate_html
 from email_sender import send_email_with_attachments, send_latest_report
 from system_tester import run_compatibility_check
 from cleanup_files import cleanup_old_files
-
-
-###########################################
-# Main Program Functions
-###########################################
-
-# Import academic processor
 from academic_processor import process_academic_papers
+
+
 
 
 def process_all():
@@ -124,72 +119,7 @@ def process_all():
         print(f"Error in full processing: {e}")
         return False
 
-###########################################
-# Command Line Interface
-###########################################
 
-def show_help():
-    """Show help message."""
-    print(f"""
-Newsletter System v08
-
-Usage: python {sys.argv[0]} [command]
-
-Commands:
-  all      Process academic papers, RSS and email, generate report, send email (default)
-  rss      Process only RSS feeds
-  email    Process only email newsletters
-  academic Process only academic papers
-  cleanup  Clean up old emails
-  files    Clean up old log and HTML files
-  send     Send the latest report only
-  test     Run compatibility tests
-  help     Show this help message
-    """)
-
-def main():
-    """Main entry point."""
-    command = sys.argv[1].lower() if len(sys.argv) > 1 else "all"
-
-    if command == "all":
-        process_all()
-    elif command == "rss":
-        rss_articles, rss_counts = process_rss_feeds()
-        print(f"Processed {len(rss_articles)} RSS articles")
-    elif command == "email":
-        email_articles, email_counts, attachments = process_email_newsletters(cleanup_emails=False)
-        print(f"Processed {len(email_articles)} email newsletters with {len(attachments)} attachments")
-    elif command == "academic":
-        # Added command to process only academic papers
-        academic_articles, academic_counts = process_academic_papers()
-        print(f"Processed {len(academic_articles)} academic papers")
-    elif command == "cleanup":
-        deleted = cleanup_old_emails(days=CLEANUP_THRESHOLD)
-        print(f"Cleaned up {deleted} old emails")
-    elif command == "files":
-        # Clean up old files
-        stats = cleanup_old_files()
-        print(f"Cleaned up {stats['logs_deleted']} logs, {stats['html_deleted']} HTML files, and {stats['attachments_deleted']} attachments")
-    elif command == "send":
-        send_latest_report()
-    elif command == "test":
-        run_compatibility_check()
-    elif command in ["help", "-h", "--help"]:
-        show_help()
-    else:
-        print(f"Unknown command: {command}")
-        show_help()
-        return 1
-
-    return 0
-
-# Import the function to clean up log files
-#from log_entry_cleanup import cleanup_old_log_entries
-
-# Call it with your log file path
-#log_file = "/home/nbc4ss/ESG_Crawler_v02/ESG_Newsletter-main/latest_articles/newsletter_system.log"
-#removed_count = cleanup_old_log_entries(log_file)
-#print(f"Removed {removed_count} old log entries")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(process_all())

@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from collections import Counter
 from config import OUTPUT_DIR, CSS_DIR, COLORS
 from utils import create_css_file, create_js_file
+from mistral import MistralAPI  # Add import for Mistral API
 
 # Helper functions for safe type conversion
 def ensure_str(value, default=""):
@@ -36,21 +37,65 @@ def extract_organization_name(article):
     return "Unknown"
 
 def enhanced_executive_summary(articles):
-    """Generate an enhanced executive summary of the articles."""
+    """Generate an enhanced executive summary of the articles using Mistral API with fallback to simple stats."""
     if not articles:
         return "<p>No articles were found matching your keywords in the last 24 hours.</p>"
 
-    # Count source types
+    # Count source types for fallback
     rss_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "rss")
     email_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "email")
     academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic")
 
-    # Build the summary
-    summary = f"<p>In the last 24 hours, we found <strong>{len(articles)}</strong> articles matching your tracked keywords "
-    summary += f"from <strong>{rss_count}</strong> RSS feeds, <strong>{email_count}</strong> newsletters, "
-    summary += f"and <strong>{academic_count}</strong> academic papers.</p>"
+    # Create fallback summary
+    fallback_summary = f"<p>In the last 24 hours, we found <strong>{len(articles)}</strong> articles matching your tracked keywords "
+    fallback_summary += f"from <strong>{rss_count}</strong> RSS feeds, <strong>{email_count}</strong> newsletters, "
+    fallback_summary += f"and <strong>{academic_count}</strong> academic papers.</p>"
 
-    return summary
+    try:
+        # Initialize Mistral API
+        mistral_api = MistralAPI()
+        
+        # Collect all article content for summary
+        all_content = []
+        for article in articles:
+            # Get the most relevant content based on source type
+            if article.get("source_type") == "academic":
+                content = article.get("snippet", "")  # Use the abstract/snippet for academic papers
+            elif article.get("source_type") == "email":
+                content = article.get("full_text", article.get("snippet", ""))  # Prefer full text for emails
+            else:  # RSS
+                content = article.get("snippet", "")  # Use snippet for RSS feeds
+            
+            if content:
+                # Add title and source info for context
+                title = article.get("title", "Untitled")
+                source = article.get("source_info", {}).get("title", "Unknown Source")
+                all_content.append(f"Title: {title}\nSource: {source}\nContent: {content}\n\n")
+
+        # Combine all content with a limit to avoid token limits
+        combined_content = "\n".join(all_content)
+        if len(combined_content) > 8000:  # Limit content to avoid token limits
+            combined_content = combined_content[:8000] + "\n\n[Content truncated for length]"
+
+        # Generate AI summary
+        ai_summary = mistral_api.generate_summary(combined_content)
+        
+        if ai_summary:
+            # Combine AI summary with basic stats
+            return f"""
+            <div class="executive-summary-content">
+                {ai_summary}
+                <div class="stats-summary">
+                    {fallback_summary}
+                </div>
+            </div>
+            """
+        
+    except Exception as e:
+        logging.warning(f"Failed to generate AI summary, using fallback: {str(e)}")
+    
+    # Return fallback summary if AI summary fails
+    return fallback_summary
 
 
 def extract_actual_url(link_str):
@@ -524,9 +569,7 @@ def generate_html(articles, keyword_counts):
     <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
     <meta name="x-apple-disable-message-reformatting">
     <title>Latest Relevant Articles - {datetime.datetime.now().strftime('%Y-%m-%d')}</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
-    </style>
+   
     <style>
         /* Embedded critical CSS for email clients */
         body {{
@@ -628,16 +671,16 @@ def generate_html(articles, keyword_counts):
             {executive_summary_html}
         </section>
 
-        <!-- Keyword Statistics -->
-        <section class="content-section" aria-labelledby="keywords-header">
-            <h2 id="keywords-header" class="section-header">Keyword Statistics</h2>
-            <div style="padding: 15px; text-align: center;">
-                {keyword_bubbles_html}
-                <div style="font-family: Arial, sans-serif; font-size: 12px; color: #666; margin-top: 10px; text-align: center;">
-                    Bubble size represents frequency of keyword occurrence
-                </div>
-            </div>
-        </section>
+    #    <!-- Keyword Statistics -->
+    #    <section class="content-section" aria-labelledby="keywords-header">
+    #        <h2 id="keywords-header" class="section-header">Keyword Statistics</h2>
+    #        <div style="padding: 15px; text-align: center;">
+     #           {keyword_bubbles_html}
+     #           <div style="font-family: Arial, sans-serif; font-size: 12px; color: #666; margin-top: 10px; text-align: center;">
+      #              Bubble size represents frequency of keyword occurrence
+       #         </div>
+     #       </div>
+     #   </section>
 
         <!-- Articles Section (using original v02 style) -->
         <section aria-labelledby="articles-header">

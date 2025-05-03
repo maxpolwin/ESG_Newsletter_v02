@@ -80,7 +80,7 @@ def run_compatibility_check():
 
     if keyword_file_exists:
         try:
-            from keywords_config_v01 import get_keywords
+            from keywords_config import get_keywords
             kw_pos, kw_neg = get_keywords()
             print(f"Loaded {len(kw_pos)} positive keywords and {len(kw_neg)} negative keywords")
         except Exception as e:

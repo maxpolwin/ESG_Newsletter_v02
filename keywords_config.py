@@ -27,46 +27,18 @@ def get_keywords():
     "EU GBS", "EU Climate Transition Benchmark", "EU CTB", "Paris-Aligned",
     "EU PAB", "PCAF", "SDGs", "Supply Chain Sourcing Obligations Act", "LkSG",
     "Lieferkettensorgfaltspflichtengesetz", "B Corp", "Social Business", "Social Enterprise",
-    "Basel IV", "Basel III", "Basel regulation", "MaRisk", "Stress Test", "IPCC", " COP ", "EOIPA", "Bauhaus", " DEI ", "Green IT",
+    "Basel IV", "Basel III", "Basel regulation", "MaRisk", "Stress Test", "IPCC", " COP ", "EOIPA",
     "EU Regulation on Deforestation-free Products", "net zero", "net-zero", "decarbonize", "decarbonise",
     "carbon credit", "biodiversity", "TNFD", "renaturation", "rewilding", "Nature based", " NbS ",
     "Nature-based", "Partnership for Carbon Accounting Financials", "Hydrogen", "Wasserstoff", "Decarbonising",
     "Decarbonizing", " NGFS ", "climate scenario", "climate policy", "stranded asset", "transition risk", "physical risk",
-    "transition path", " VSME ", "(VSME)", "ESG-Score", "ESG-Rating", " CDR ", " CRCF ", "(CRCF)", "Carbon Removal", "Carbon Farming"
-    "Swiss Climate Law", "CO2 Act", "CO2-Act", "HR DD", "HR Due Diligence"
+    "transition path", " VSME ", "(VSME)", "ESG-Score", "ESG-Rating", " CDR ", " CRCF ", "(CRCF)", "Carbon Removal", "Carbon Farming",
+    "Swiss Climate Law", "CO2 Act", "CO2-Act", "HR DD", "HR Due Diligence", "ESG Rating"
 }
 
     # Negative keywords - content containing these will be EXCLUDED
     negative_keywords = {
-    "BaFin warnt vor", "Harry Potter", "Application deadline", " gene ", "hyrodgen bomb",
+    "BaFin warnt vor", "Harry Potter", "Application deadline", " gene ", "hyrodgen bomb"
 }
 
     return keywords, negative_keywords
-
-def get_academic_keywords():
-    """
-    Return a focused subset of keywords specifically for academic paper searches.
-    This helps reduce API calls to Semantic Scholar and avoid rate limiting.
-    """
-    # High-priority academic keywords - these are more likely to appear in academic papers
-    # and are more specific to reduce result sets
-    academic_keywords = keywords
-        # Primary ESG frameworks and reporting standards
-      #  "CSRD", "EU Taxonomy", "TCFD", "TNFD",
-
-        # Climate and sustainability core concepts
-      #  "net zero", "carbon credit", "Climate Risk", "biodiversity",
-
-        # Policy mechanisms
-      #  "Paris Agreement", "European Green Deal", "CBAM",
-      #  "European Union Emissions Trading System",
-
-        # Technical/academic terms
-     #   "Nature based solution", "decarbonization pathway", "GHG Protocol",
-      #  "IPCC", "Corporate Sustainability Due Diligence",
-
-        # Most relevant abbreviations
-      #  "ESG", "SDGs", "GHG"
-  #  }
-
-    return academic_keywords
