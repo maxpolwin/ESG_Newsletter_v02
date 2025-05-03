@@ -1,0 +1,126 @@
+# Environment variables and sensitive data
+.env
+.env.txt
+*.env
+*.env.*
+secrets.json
+credentials.json
+config_secrets.py
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Project specific
+latest_articles/
+css/
+*.log
+*.pdf
+*.docx
+*.doc
+*.xlsx
+*.xls
+*.csv
+*.json
+!package.json
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Database
+*.db
+*.sqlite3
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Sensitive information
+config/secrets.py
+config/credentials.py
+config/email_config.py
+config/api_keys.py
+*.pem
+*.key
+*.crt
+*.csr
+
+# Email specific
+email_credentials.json
+email_config.json
+*.eml
+*.msg
+
+# API keys and tokens
+api_keys.json
+tokens.json
+perplexity_api_key.txt
+openai_api_key.txt
+
+# OS specific
+.DS_Store
+Thumbs.db 
