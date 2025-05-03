@@ -48,8 +48,6 @@ def enhanced_executive_summary(articles):
     podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")  # NEW
 
     logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {academic_count} academic papers, {podcast_count} podcasts")
-                 f"{academic_count} academic papers, {podcast_count} podcast episodes")  # UPDATED
-
 
     # Create fallback summary
     fallback_summary = f"<p>In the last 24 hours, we found <strong>{len(articles)}</strong> articles matching your tracked keywords "
@@ -177,6 +175,52 @@ def extract_actual_url(link_str):
 
     # No transformation needed/possible - return original link
     return link_str
+
+def generate_podcast_section(podcast_articles):
+    """
+    Generate HTML for podcast episodes.
+    Args:
+        podcast_articles: List of podcast article dicts
+    Returns:
+        str: HTML string for podcast section
+    """
+    if not podcast_articles:
+        return ""
+    podcast_html = ""
+    for article in podcast_articles:
+        title = ensure_str(article.get("title", "Untitled"))
+        description = ensure_str(article.get("snippet", ""))
+        link = ensure_str(article.get("link", ""))
+        pub_date = ensure_str(article.get("pub_date", ""))
+        duration = ensure_str(article.get("duration", ""))
+        # Add more fields as needed
+
+        podcast_html += f"""
+        <tr>
+            <td style="padding: 0 0 20px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #FFF7E6; border-radius: 8px;">
+                    <tr>
+                        <td style="padding: 15px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                                <h3 style="margin: 0; font-family: Arial, sans-serif; font-size: 16px;">
+                                    <a href="{link}" style="color: #D2691E; text-decoration: none;">🎙️ {title}</a>
+                                </h3>
+                                <span style="display: inline-block; background-color: #FFE4B5; color: #D2691E;
+                                      padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;">Podcast</span>
+                            </div>
+                            <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
+                                {description}
+                            </div>
+                            <div style="font-family: Arial, sans-serif; font-size: 12px; color: #D2691E;">
+                                {pub_date} {f'| Duration: {duration}' if duration else ''}
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        """
+    return podcast_html
 
 def generate_html(articles, keyword_counts):
     """
@@ -395,7 +439,7 @@ def generate_html(articles, keyword_counts):
                     </td>
                 </tr>
                 """
-            else:  # Email newsletter (original v02 style)
+            elif source_type == "email":
                 sender = ensure_str(article.get("sender", "Unknown"))
                 raw_webview_link = ensure_str(article.get("webview_link", ""))
                 webview_link = extract_actual_url(raw_webview_link)
@@ -490,6 +534,9 @@ def generate_html(articles, keyword_counts):
                     </td>
                 </tr>
                 """
+            elif source_type == "podcast":
+                podcast_entry = generate_podcast_section([article])
+                article_entry = podcast_entry
 
             article_entries_html.append(article_entry)
 
@@ -681,7 +728,7 @@ def generate_html(articles, keyword_counts):
     <section class="content-section" aria-labelledby="keywords-header">
         <h2 id="keywords-header" class="section-header">Keyword Statistics</h2>
         <div style="padding: 15px; text-align: center;">
-            {keyword_bubbles_html}
+            
             <div style="font-family: Arial, sans-serif; font-size: 12px; color: #666; margin-top: 10px; text-align: center;">
                 Bubble size represents frequency of keyword occurrence
             </div>

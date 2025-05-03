@@ -86,7 +86,7 @@ POOL_MAXSIZE = 3
 # Rate limiting settings
 RATE_LIMIT_REQUESTS = 10  # Number of requests allowed per window
 RATE_LIMIT_WINDOW = 60  # Time window in seconds
-MIN_REQUEST_INTERVAL = 1  # Minimum time between requests to the same domain
+MIN_REQUEST_INTERVAL = 0.5  # Minimum time between requests to the same domain
 
 # Feed health monitoring settings
 FEED_HEALTH_WINDOW = 72 * 60 * 60  # 72 hours in seconds
@@ -1545,7 +1545,7 @@ def filter_rss_entries(entries):
     keyword_counts = Counter()
 
     # Use a ThreadPoolExecutor for parallel processing of entries
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=30) as executor: #increase max_workers to 30 from 10 for more parallel processing
         # Submit tasks for content extraction
         future_to_entry = {}
         for entry in entries:
