@@ -277,7 +277,7 @@ def search_podcasts(
         logging.error(f"Failed to search podcasts: {str(e)}")
         raise SpotifyAPIError(f"API search failed: {str(e)}")
 
-def filter_podcasts_by_date(podcasts: List[Dict], hours_ago: int = 24) -> List[Dict]:
+def filter_podcasts_by_date(podcasts: List[Dict], hours_ago: int = 24) -> List[Dict]: #72 hours = 3 days increased from 24 hours = 1 day
     """Filter podcasts by release date."""
     cutoff_time = datetime.datetime.now() - datetime.timedelta(hours=hours_ago)
     filtered_podcasts = []
@@ -646,7 +646,7 @@ def process_podcasts(
 if __name__ == "__main__":
     # Configure logging for standalone execution
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler("podcast_processor.log"),

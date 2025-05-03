@@ -164,6 +164,10 @@ except ImportError:
 # List of RSS feeds to fetch
 RSS_FEEDS = [
     "http://global.oup.com/academic/category/law/?view=RSS",
+    "https://www.esrb.europa.eu/rss/press.xml",
+    "https://www.esrb.europa.eu/rss/pub.rss",
+    "https://www.esrb.europa.eu/rss/esrb_policy.rss",
+    "https://www.esrb.europa.eu/rss/nat_policy.rss",
     "http://global.oup.com/academic/category/science-and-mathematics/earth-sciences-and-geography/?view=RSS",
     "http://global.oup.com/academic/category/science-and-mathematics/environmental-science/?view=RSS",
     "http://global.oup.com/academic/category/social-sciences/?view=RSS",
