@@ -45,6 +45,11 @@ def enhanced_executive_summary(articles):
     rss_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "rss")
     email_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "email")
     academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic")
+    podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")  # NEW
+
+    logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {academic_count} academic papers, {podcast_count} podcasts")
+                 f"{academic_count} academic papers, {podcast_count} podcast episodes")  # UPDATED
+
 
     # Create fallback summary
     fallback_summary = f"<p>In the last 24 hours, we found <strong>{len(articles)}</strong> articles matching your tracked keywords "
@@ -215,71 +220,72 @@ def generate_html(articles, keyword_counts):
     </div>
     """
 
+    # --- Keyword Statistics section is commented out ---
     # Keyword Bubbles Section
-    if keyword_counts:
-        # Find the maximum count to scale bubbles appropriately
-        try:
-            # Make sure all values are integers
-            normalized_counts = {k: ensure_int(v, 1) for k, v in keyword_counts.items()}
-            max_count = max(normalized_counts.values()) if normalized_counts else 1
-        except ValueError:
-            # Fallback if there's an issue
-            max_count = 1
-
-        min_size = 5  # Minimum bubble size in pixels
-        max_size = 120  # Maximum bubble size in pixels
-
-        keyword_bubbles_html = ""
-        for kw, count in keyword_counts.items():
-            # Safe conversion of count to integer
-            count_int = ensure_int(count, 1)
-
-            # Calculate bubble size based on count relative to max_count (safely)
-            size_ratio = count_int / max_count if max_count > 0 else 1.0
-            size = min_size + int(size_ratio * (max_size - min_size))
-
-            # Try to find a font size that keeps text inside the bubble.
-            # If it doesn't fit at smaller font sizes, use alternative display
-            text_content = f"{kw} ({count_int})"
-            inside_bubble = False
-            chosen_font_size = 10  # Start from a readable minimum font size
-            for fs in range(20, 9, -1):
-                # Quick check to see if text can fit in the bubble
-                approx_width = len(text_content) * fs * 0.6
-                approx_height = fs * 1.6  # extra space for line break
-                if approx_width <= size * 0.9 and approx_height <= size * 0.9:
-                    chosen_font_size = fs
-                    inside_bubble = True
-                    break
-
-            if inside_bubble:
-                # Render text inside the bubble
-                keyword_bubbles_html += f"""
-                <div style="display: inline-block; position: relative; margin: 10px; width: {size}px; height: {size}px;
-                            background-color: #00827C; border-radius: 50%; text-align: center;
-                            vertical-align: middle; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                               width: 90%; color: white; font-family: Arial, sans-serif; font-size: {chosen_font_size}px;
-                               font-weight: bold; line-height: 1.2;">
-                        {kw}<br><span style="font-size: smaller;">({count_int})</span>
-                    </div>
-                </div>
-                """
-            else:
-                # Render text above the bubble (since it won't fit inside)
-                keyword_bubbles_html += f"""
-                <div style="display: inline-block; margin: 10px; text-align: center;">
-                    <div style="font-family: Arial, sans-serif; font-weight: bold; font-size: 12px; color: #00827C; margin-bottom: 5px;">
-                        {kw} ({count_int})
-                    </div>
-                    <div style="position: relative; width: {size}px; height: {size}px;
-                                background-color: #00827C; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                    </div>
-                </div>
-                """
-    else:
-        # If no keywords matched, show empty stats
-        keyword_bubbles_html = "<div style='padding: 15px; text-align: center; color: #666;'>No keyword matches found.</div>"
+    # if keyword_counts:
+    #     # Find the maximum count to scale bubbles appropriately
+    #     try:
+    #         # Make sure all values are integers
+    #         normalized_counts = {k: ensure_int(v, 1) for k, v in keyword_counts.items()}
+    #         max_count = max(normalized_counts.values()) if normalized_counts else 1
+    #     except ValueError:
+    #         # Fallback if there's an issue
+    #         max_count = 1
+    #
+    #     min_size = 5  # Minimum bubble size in pixels
+    #     max_size = 120  # Maximum bubble size in pixels
+    #
+    #     keyword_bubbles_html = ""
+    #     for kw, count in keyword_counts.items():
+    #         # Safe conversion of count to integer
+    #         count_int = ensure_int(count, 1)
+    #
+    #         # Calculate bubble size based on count relative to max_count (safely)
+    #         size_ratio = count_int / max_count if max_count > 0 else 1.0
+    #         size = min_size + int(size_ratio * (max_size - min_size))
+    #
+    #         # Try to find a font size that keeps text inside the bubble.
+    #         # If it doesn't fit at smaller font sizes, use alternative display
+    #         text_content = f"{kw} ({count_int})"
+    #         inside_bubble = False
+    #         chosen_font_size = 10  # Start from a readable minimum font size
+    #         for fs in range(20, 9, -1):
+    #             # Quick check to see if text can fit in the bubble
+    #             approx_width = len(text_content) * fs * 0.6
+    #             approx_height = fs * 1.6  # extra space for line break
+    #             if approx_width <= size * 0.9 and approx_height <= size * 0.9:
+    #                 chosen_font_size = fs
+    #                 inside_bubble = True
+    #                 break
+    #
+    #         if inside_bubble:
+    #             # Render text inside the bubble
+    #             keyword_bubbles_html += f"""
+    #             <div style="display: inline-block; position: relative; margin: 10px; width: {size}px; height: {size}px;
+    #                         background-color: #00827C; border-radius: 50%; text-align: center;
+    #                         vertical-align: middle; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+    #                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    #                            width: 90%; color: white; font-family: Arial, sans-serif; font-size: {chosen_font_size}px;
+    #                            font-weight: bold; line-height: 1.2;">
+    #                     {kw}<br><span style="font-size: smaller;">({count_int})</span>
+    #                 </div>
+    #             </div>
+    #             """
+    #         else:
+    #             # Render text above the bubble (since it won't fit inside)
+    #             keyword_bubbles_html += f"""
+    #             <div style="display: inline-block; margin: 10px; text-align: center;">
+    #                 <div style="font-family: Arial, sans-serif; font-weight: bold; font-size: 12px; color: #00827C; margin-bottom: 5px;">
+    #                     {kw} ({count_int})
+    #                 </div>
+    #                 <div style="position: relative; width: {size}px; height: {size}px;
+    #                             background-color: #00827C; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+    #                 </div>
+    #             </div>
+    #             """
+    # else:
+    #     # If no keywords matched, show empty stats
+    #     keyword_bubbles_html = "<div style='padding: 15px; text-align: center; color: #666;'>No keyword matches found.</div>"
 
     # Articles Section (using original v02 style)
     if articles:
@@ -671,34 +677,35 @@ def generate_html(articles, keyword_counts):
             {executive_summary_html}
         </section>
 
-    #    <!-- Keyword Statistics -->
-    #    <section class="content-section" aria-labelledby="keywords-header">
-    #        <h2 id="keywords-header" class="section-header">Keyword Statistics</h2>
-    #        <div style="padding: 15px; text-align: center;">
-     #           {keyword_bubbles_html}
-     #           <div style="font-family: Arial, sans-serif; font-size: 12px; color: #666; margin-top: 10px; text-align: center;">
-      #              Bubble size represents frequency of keyword occurrence
-       #         </div>
-     #       </div>
-     #   </section>
-
-        <!-- Articles Section (using original v02 style) -->
-        <section aria-labelledby="articles-header">
-            <h2 id="articles-header" class="section-header">Articles</h2>
-            <div>
-                <!-- Original v02 table-based article layout -->
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="padding: 20px;">
-                    {articles_block}
-                </table>
+    <!--
+    <section class="content-section" aria-labelledby="keywords-header">
+        <h2 id="keywords-header" class="section-header">Keyword Statistics</h2>
+        <div style="padding: 15px; text-align: center;">
+            {keyword_bubbles_html}
+            <div style="font-family: Arial, sans-serif; font-size: 12px; color: #666; margin-top: 10px; text-align: center;">
+                Bubble size represents frequency of keyword occurrence
             </div>
-        </section>
+        </div>
+    </section>
+    -->
 
-        <!-- Footer -->
-        <footer class="footer" role="contentinfo">
-            <p>Generated by v05 on-prem on {datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} UTC</p>
+    <!-- Articles Section (using original v02 style) -->
+    <section aria-labelledby="articles-header">
+        <h2 id="articles-header" class="section-header">Articles</h2>
+        <div>
+            <!-- Original v02 table-based article layout -->
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="padding: 20px;">
+                {articles_block}
+            </table>
+        </div>
+    </section>
 
-        </footer>
-    </div>
+    <!-- Footer -->
+    <footer class="footer" role="contentinfo">
+        <p>Generated by v05 on-prem on {datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")} UTC</p>
+
+    </footer>
+</div>
 
     <!--[if mso]>
     </td>
