@@ -35,6 +35,8 @@ from urllib3.exceptions import InsecureRequestWarning
 import gzip
 import traceback
 import threading
+from keywords_config import get_keywords
+from utils import normalize_text, generate_article_id, get_domain_from_url
 
 # For PDF processing
 try:
@@ -45,14 +47,6 @@ except ImportError:
     PDF_SUPPORT = False
     logging.warning("PyPDF2 not installed. PDF processing will be disabled.")
 
-# For NLP-based content extraction (optional)
-try:
-    from newspaper import Article as NewsArticle
-    from newspaper import Config as NewsConfig
-    NEWSPAPER_SUPPORT = True
-except ImportError:
-    NEWSPAPER_SUPPORT = False
-    logging.warning("newspaper3k not installed. Advanced article extraction will be limited.")
 
 # For browser automation (optional)
 try:
@@ -89,7 +83,7 @@ RATE_LIMIT_WINDOW = 60  # Time window in seconds
 MIN_REQUEST_INTERVAL = 0.5  # Minimum time between requests to the same domain
 
 # Feed health monitoring settings
-FEED_HEALTH_WINDOW = 72 * 60 * 60  # 72 hours in seconds
+FEED_HEALTH_WINDOW = 24 * 60 * 60  # 24 hours in seconds
 MIN_SUCCESS_RATE = 0.7  # Minimum success rate for a feed to be considered healthy
 MAX_CONSECUTIVE_FAILURES = 3000  # Maximum number of consecutive failures before marking feed as unhealthy
 
@@ -1255,7 +1249,7 @@ def extract_full_content(url, entry):
 
     except Exception as e:
         logging.error(f"Error extracting full content from {url}: {e}")
-        logging.debug(traceback.format_exc())
+        logging.error(traceback.format_exc()) #lowered from debug to error
         return None
 
 def process_attachments(entry):
@@ -1498,7 +1492,7 @@ def fetch_rss_entries():
                                         break
 
                                 except Exception as e:
-                                    logging.debug(f"Failed to parse date from {field}: {e}")
+                                    logging.error(f"Failed to parse date from {field}: {e}") #lowered from debug to error
 
                         if not published_time:
                             logging.warning(f"No timestamp found for article: {entry.get('title', 'No Title')}. Using current time.")

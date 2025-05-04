@@ -38,7 +38,7 @@ def get_keywords():
 
     # Negative keywords - content containing these will be EXCLUDED
     negative_keywords = {
-    "BaFin warnt vor", "Harry Potter", "Application deadline", " gene ", "hyrodgen bomb"
+    "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb"
 }
 
     return keywords, negative_keywords

@@ -28,9 +28,41 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import wraps
 
+print("[DEBUG] Before importing keywords")
+
 # Import configuration and utilities (matching ESG_Newsletter import pattern)
-from config import KEYWORDS, NEGATIVE_KEYWORDS
+# FIXED: Import the get_keywords function instead of the variables directly
+from keywords_config import get_keywords
+
+print("[DEBUG] Imported keywords module")
+
+print("[DEBUG] Before importing config/utils")
+
 from utils import normalize_text, generate_article_id
+
+print("[DEBUG] After importing config/utils")
+
+# FIXED: Load keywords using the get_keywords function
+KEYWORDS, NEGATIVE_KEYWORDS = get_keywords()
+print(f"[DEBUG] Successfully loaded {len(KEYWORDS)} keywords and {len(NEGATIVE_KEYWORDS)} negative keywords")
+
+# Replace the dotenv import with this function
+def load_env_file():
+    """Load environment variables from .env file"""
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+    except FileNotFoundError:
+        print("[DEBUG] No .env file found, using system environment variables")
+    except Exception as e:
+        print(f"[DEBUG] Error loading .env file: {e}")
+
+# Replace load_dotenv() with our function
+load_env_file()
 
 # Spotify API endpoints
 TOKEN_URL = "https://accounts.spotify.com/api/token"
@@ -42,19 +74,61 @@ RETRY_ATTEMPTS = 5
 BASE_DELAY = 1  # Initial delay for exponential backoff
 
 # Language settings
-SUPPORTED_LANGUAGES = ["en", "de"]
+SUPPORTED_LANGUAGES = ["en", "de", "es"]
 MARKET_LANGUAGE_MAP = {
     "US": "en",
     "GB": "en",
     "DE": "de",
     "AT": "de",
-    "CH": "de"
+    "CH": "de",
+    "ES": "es",
+    "MX": "es",
+    "AR": "es",
+    "CO": "es",
+    "CL": "es",
+    "PE": "es",
+    "VE": "es",
+    "EC": "es",
+    "UY": "es",
+    "PY": "es",
+    "BO": "es",
+    "CR": "es",
+    "PA": "es",
+    "GT": "es",
+    "CU": "es",
+    "DO": "es",
+    "SV": "es",
+    "HN": "es",
+    "NI": "es",
+    "PR": "es",
 }
 
 # Define markets to search in for each language
 LANGUAGE_MARKETS = {
     "en": ["US", "GB"],
-    "de": ["DE", "AT", "CH"]
+    "de": ["DE", "AT", "CH"],
+    "es": [
+        "ES",
+        "MX",
+        "AR",
+        "CO",
+        "CL",
+        "PE",
+        "VE",
+        "EC",
+        "UY",
+        "PY",
+        "BO",
+        "CR",
+        "PA",
+        "GT",
+        "CU",
+        "DO",
+        "SV",
+        "HN",
+        "NI",
+        "PR",
+    ]
 }
 
 # Rate limiting settings
@@ -204,15 +278,14 @@ def with_spotify_auth(func):
     """Decorator to ensure Spotify API calls have valid authentication."""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # Check if the function expects a token parameter
-        if "token" in kwargs:
-            token_manager = get_token_manager()
-            kwargs["token"] = token_manager.get_valid_token()
-        elif len(args) > 0 and isinstance(args[0], str):
-            # Assume first string argument is the token
-            token_manager = get_token_manager()
-            args = (token_manager.get_valid_token(),) + args[1:]
+        # Get a valid token
+        token_manager = get_token_manager()
+        token = token_manager.get_valid_token()
         
+        # Add token to kwargs if not already present
+        if "token" not in kwargs:
+            kwargs["token"] = token
+            
         return func(*args, **kwargs)
     return wrapper
 
@@ -225,10 +298,7 @@ def search_podcasts(
     offset: int = 0,
     include_external: str = "audio"
 ) -> List[Dict]:
-    """
-    Search for podcast episodes using the Spotify API.
-    The token parameter will be automatically populated by the decorator.
-    """
+    print(f"[DEBUG] Entered search_podcasts for keyword '{keyword}' and market '{market}'")
     try:
         headers = {
             "Authorization": f"Bearer {token}"
@@ -246,21 +316,33 @@ def search_podcasts(
         # Apply rate limiting
         spotify_rate_limiter.wait_if_needed()
         
+        # Add detailed debug logging
+        print(f"[DEBUG] Searching Spotify: keyword='{keyword}', market={market}, limit={limit}")
+        print(f"[DEBUG] Request URL: {SEARCH_ENDPOINT}")
+        print(f"[DEBUG] Request params: {params}")
+        
         logging.debug(f"Searching Spotify: keyword='{keyword}', market={market}, limit={limit}")
         response = requests.get(SEARCH_ENDPOINT, headers=headers, params=params, timeout=DEFAULT_TIMEOUT)
         
+        # Add response debugging
+        print(f"[DEBUG] Response status: {response.status_code}")
+        print(f"[DEBUG] Response headers: {dict(response.headers)}")
+        
         # Handle Spotify-specific error codes
         if response.status_code == 401:
+            print(f"[DEBUG] Authentication error - token might be expired")
             # Token might have expired, force refresh
             get_token_manager().get_valid_token()
             raise SpotifyAuthError("Token expired, please retry")
         elif response.status_code == 403:
             error_data = response.json()
             error_msg = error_data.get("error", {}).get("message", "Unknown error")
+            print(f"[DEBUG] Forbidden error: {error_msg}")
             raise SpotifyAPIError(f"Forbidden: {error_msg}")
         elif response.status_code == 429:
             # Rate limited - retry with exponential backoff
             retry_after = int(response.headers.get("Retry-After", 30))
+            print(f"[DEBUG] Rate limited. Waiting {retry_after}s")
             logging.warning(f"Rate limited by Spotify. Waiting {retry_after}s")
             time.sleep(retry_after)
             return []  # Return empty to continue without crashing
@@ -270,14 +352,21 @@ def search_podcasts(
         data = response.json()
         episodes = data.get("episodes", {}).get("items", [])
         
+        # Debug the response
+        print(f"[DEBUG] Response data keys: {list(data.keys())}")
+        print(f"[DEBUG] Episodes found: {len(episodes)}")
+        if episodes:
+            print(f"[DEBUG] First episode title: {episodes[0].get('name', 'No name')}")
+        
         logging.debug(f"Found {len(episodes)} episodes for keyword '{keyword}' in market {market}")
         return episodes
             
     except requests.exceptions.RequestException as e:
+        print(f"[DEBUG] Request exception: {str(e)}")
         logging.error(f"Failed to search podcasts: {str(e)}")
         raise SpotifyAPIError(f"API search failed: {str(e)}")
 
-def filter_podcasts_by_date(podcasts: List[Dict], hours_ago: int = 24) -> List[Dict]: #72 hours = 3 days increased from 24 hours = 1 day
+def filter_podcasts_by_date(podcasts: List[Dict], hours_ago: int = 24) -> List[Dict]: #24 hours = 1 days increased from 72 hours = 3 day
     """Filter podcasts by release date."""
     cutoff_time = datetime.datetime.now() - datetime.timedelta(hours=hours_ago)
     filtered_podcasts = []
@@ -313,6 +402,12 @@ def filter_podcasts_by_keywords(
     negative_keywords: List[str] = None
 ) -> Tuple[List[Dict], Counter]:
     """Filter podcasts by keywords in title and description."""
+    # FIXED: Convert keywords from set to list if necessary
+    if isinstance(keywords, set):
+        keywords = list(keywords)
+    if isinstance(negative_keywords, set):
+        negative_keywords = list(negative_keywords)
+    
     if negative_keywords is None:
         negative_keywords = []
         
@@ -435,67 +530,53 @@ def with_graceful_failure(func):
     return wrapper
 
 def search_keyword_in_markets(keyword: str, markets: List[str]) -> List[Dict]:
-    """Search for a keyword in multiple markets."""
+    print(f"[DEBUG] Entered search_keyword_in_markets for keyword '{keyword}' and markets {markets}")
     all_results = []
-    
     for market in markets:
         try:
+            print(f"[DEBUG] Calling search_podcasts for keyword '{keyword}' in market '{market}'")
             results = search_podcasts(keyword=keyword, market=market)
-            # Add market information to each podcast
+            print(f"[DEBUG] search_podcasts returned {len(results)} results for market '{market}'")
             for podcast in results:
                 podcast["market"] = market
             all_results.extend(results)
         except Exception as e:
-            logging.error(f"Error searching keyword '{keyword}' in market {market}: {str(e)}")
+            print(f"[DEBUG] Exception in search_keyword_in_markets for market '{market}': {e}")
             continue
-    
+    print(f"[DEBUG] Exiting search_keyword_in_markets for keyword '{keyword}'")
     return all_results
 
 def process_podcasts_parallel(keywords: List[str], languages: List[str]) -> List[Dict]:
-    """Process podcasts in parallel for better performance."""
+    print("[DEBUG] Entered process_podcasts_parallel")
     all_results = []
     total_searches = 0
-    successful_searches = 0
-    
-    # Calculate total searches for progress tracking
     for language in languages:
         total_searches += len(keywords) * len(LANGUAGE_MARKETS.get(language, []))
-    
     if total_searches == 0:
-        logging.warning("No searches to perform")
+        print("[DEBUG] No searches to perform in process_podcasts_parallel")
         return []
-    
-    logging.info(f"Starting parallel search for {total_searches} keyword/market combinations")
-    
+    print(f"[DEBUG] Will perform {total_searches} searches")
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
         for language in languages:
             markets = LANGUAGE_MARKETS.get(language, [])
             for keyword in keywords:
+                print(f"[DEBUG] Submitting search for keyword '{keyword}' in markets {markets}")
                 future = executor.submit(search_keyword_in_markets, keyword, markets)
                 futures.append((future, language, keyword))
-        
-        # Track progress
         completed = 0
         for future, language, keyword in futures:
             try:
+                print(f"[DEBUG] Waiting for result of keyword '{keyword}' in language '{language}'")
                 results = future.result()
+                print(f"[DEBUG] Got result for keyword '{keyword}' in language '{language}': {len(results)} episodes")
                 if results:
-                    successful_searches += 1
                     all_results.extend(results)
                 completed += 1
-                
-                # Progress logging
-                progress = (completed / total_searches) * 100
-                if progress % 20 == 0 or completed == total_searches:
-                    logging.info(f"Search progress: {progress:.0f}% ({completed}/{total_searches})")
-                    print(f"Podcast search progress: {progress:.0f}% ({completed}/{total_searches})")
-                
             except Exception as e:
-                logging.error(f"Error processing future for keyword '{keyword}': {str(e)}")
+                print(f"[DEBUG] Exception in future for keyword '{keyword}': {e}")
                 completed += 1
-    
-    logging.info(f"Parallel search complete: {successful_searches}/{total_searches} successful searches")
+    print("[DEBUG] Exiting process_podcasts_parallel")
     return all_results
 
 def process_podcasts(
@@ -507,11 +588,7 @@ def process_podcasts(
     hours_ago: int = 24,
     use_parallel: bool = True
 ) -> Tuple[List[Dict], Counter]:
-    """
-    Main function to process podcasts using the Spotify API.
-    
-    This function gracefully handles all errors and provides detailed logging.
-    """
+    print("[DEBUG] Entered process_podcasts")
     # Log configuration
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"\n{'='*60}")
@@ -643,10 +720,46 @@ def process_podcasts(
         print(f"Error processing podcasts: {str(e)}")
         return [], Counter()
 
+def test_basic_spotify_api():
+    """Test basic Spotify API connectivity with a simple search"""
+    try:
+        token_manager = get_token_manager()
+        token = token_manager.get_valid_token()
+        
+        # Test with a very common search term
+        headers = {"Authorization": f"Bearer {token}"}
+        params = {
+            "q": "climate",
+            "type": "episode",
+            "market": "US",
+            "limit": 5
+        }
+        
+        print("\n[TEST] Testing basic Spotify API connectivity...")
+        print(f"[TEST] URL: {SEARCH_ENDPOINT}")
+        print(f"[TEST] Params: {params}")
+        
+        response = requests.get(SEARCH_ENDPOINT, headers=headers, params=params, timeout=DEFAULT_TIMEOUT)
+        print(f"[TEST] Status code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            episodes = data.get("episodes", {}).get("items", [])
+            print(f"[TEST] Episodes found: {len(episodes)}")
+            if episodes:
+                print(f"[TEST] First episode: {episodes[0].get('name', 'No name')}")
+            else:
+                print("[TEST] No episodes found for 'climate' search")
+        else:
+            print(f"[TEST] Error response: {response.text}")
+            
+    except Exception as e:
+        print(f"[TEST] Error: {str(e)}")
+
 if __name__ == "__main__":
     # Configure logging for standalone execution
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.ERROR, #lowered from debug to error
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler("podcast_processor.log"),
@@ -654,13 +767,39 @@ if __name__ == "__main__":
         ]
     )
     
-    # Test the module
-    podcasts, counts = process_podcasts()
+    # Get credentials from environment variables
+    spotify_client_id = os.environ.get("SPOTIFY_CLIENT_ID")
+    spotify_client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
     
-    # Print results
+    # Add API test before main processing
+    test_basic_spotify_api()
+    
+    # Test the module with explicit parameters
+    podcasts, counts = process_podcasts(
+        client_id=spotify_client_id,
+        client_secret=spotify_client_secret,
+        keywords=KEYWORDS,  # Pass imported keywords
+        negative_keywords=NEGATIVE_KEYWORDS,  # Pass imported negative keywords
+        languages=["en", "de"],  # Specify languages explicitly
+        hours_ago=24,
+        use_parallel=True  # Use parallel processing for better performance
+    )
+    
+    # Print detailed results
     print(f"\nTest Results:")
     print(f"Found {len(podcasts)} relevant podcasts")
     if counts:
         print("Top keyword matches:")
         for keyword, count in counts.most_common(10):
             print(f"  {keyword}: {count}")
+    
+    # Print some example podcast results
+    if podcasts:
+        print("\nExample podcasts found:")
+        for i, podcast in enumerate(podcasts[:3]):
+            print(f"{i+1}. {podcast['title']}")
+            print(f"   Source: {podcast['show_name']}")
+            print(f"   Duration: {podcast['duration']}")
+            print(f"   Release: {podcast['pub_date']}")
+            print(f"   Link: {podcast['spotify_url']}")
+            print()

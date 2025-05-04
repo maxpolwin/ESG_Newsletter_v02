@@ -168,10 +168,6 @@ RSS_FEEDS = [
     "https://www.esrb.europa.eu/rss/pub.rss",
     "https://www.esrb.europa.eu/rss/esrb_policy.rss",
     "https://www.esrb.europa.eu/rss/nat_policy.rss",
-    "http://global.oup.com/academic/category/science-and-mathematics/earth-sciences-and-geography/?view=RSS",
-    "http://global.oup.com/academic/category/science-and-mathematics/environmental-science/?view=RSS",
-    "http://global.oup.com/academic/category/social-sciences/?view=RSS",
-    "http://global.oup.com/academic/category/arts-and-humanities/?view=RSS",
     "https://www.theguardian.com/europe/rss",
     "https://www.theguardian.com/uk/commentisfree",
     "https://www.theguardian.com/environment/climate-crisis/rss",
@@ -394,11 +390,8 @@ RSS_FEEDS = [
     "https://www.eea.europa.eu/data-and-maps/figures/RSS2",
     "https://wiiw.ac.at/rss.xml",
     "https://ecipe.org/feed/",
-    "https://www.ifo.de/en/pressemitteilungen/rss.xml",
-    "https://www.diw.de/de/rss_news.xml",
-    "https://www.diw.de/de/rss_roundup.xml",
-    "https://www.diw.de/de/rss_publications.xml",
-    "https://www.diw.de/de/rss_soep_news.xml"
+
+    
     # More feeds can be added here
 ]
 

@@ -42,6 +42,7 @@ from email_sender import send_email_with_attachments, send_latest_report
 from system_tester import run_compatibility_check
 from cleanup_files import cleanup_old_files
 from academic_processor import process_academic_papers
+from podcast_processor import process_podcasts
 
 
 
@@ -71,6 +72,13 @@ def process_all():
         logging.info(f"Processed {len(rss_articles)} RSS articles")
         print(f"Processed {len(rss_articles)} RSS articles")
 
+        # REORDERED: Process podcasts
+        logging.info("Now processing podcasts...")
+        print("Now processing podcasts...")
+        podcast_articles, podcast_keyword_counts = process_podcasts()
+        logging.info(f"Processed {len(podcast_articles)} podcast episodes")
+        print(f"Processed {len(podcast_articles)} podcast episodes")
+
         # REORDERED: Finally process email newsletters
         logging.info("Finally processing email newsletters...")
         print("Finally processing email newsletters...")
@@ -79,7 +87,7 @@ def process_all():
         print(f"Processed {len(email_articles)} email newsletters with {len(attachments)} attachments")
 
         # Combine all articles from all sources
-        all_articles = academic_articles + rss_articles + email_articles
+        all_articles = academic_articles + rss_articles + podcast_articles + email_articles
         print(f"Total articles to include in report: {len(all_articles)}")
 
         # Combine keyword counts from all sources - start with academic counts
@@ -87,6 +95,10 @@ def process_all():
 
         # Add RSS keyword counts
         for keyword, count in rss_keyword_counts.items():
+            all_keyword_counts[keyword] += count
+
+        # Add podcast keyword counts
+        for keyword, count in podcast_keyword_counts.items():
             all_keyword_counts[keyword] += count
 
         # Add email keyword counts

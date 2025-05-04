@@ -249,6 +249,7 @@ def generate_html(articles, keyword_counts):
     rss_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "rss")
     email_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "email")
     academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic")
+    podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")  
     logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {academic_count} academic papers")
 
     # Generate the executive summary - use the enhanced version
