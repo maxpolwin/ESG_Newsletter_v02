@@ -163,6 +163,47 @@ except ImportError:
 
 # List of RSS feeds to fetch
 RSS_FEEDS = [
+    "https://imo-epublications.org/rss/content/all/most_recent_items?fmt=rss",
+    "https://wcd.copernicus.org/xml/rss2_0.xml",
+    "https://www.generali.com/.rest/rss/v1/feed?name=pressReleases",
+    "https://www.destatis.de/SiteGlobals/Functions/RSSFeed/DE/RSSNewsfeed/Aktuell.xml",
+    "https://rss.sueddeutsche.de/alles",
+    "https://think.ing.com/rss",
+    "https://www.ncei.noaa.gov/access/monitoring/monthly-report/rss.xml",
+    "https://www.hec.edu/en/knowledge/feed.xml",
+    "https://www.hec.edu/en/news/feed.xml",
+    "https://mid.ecb.europa.eu/rss/mid.xml",
+    "https://presseportal.greenpeace.de/press_releases.atom",
+    "https://www.bbva.com/es/rss/notas-de-prensa/",
+    "https://www.kfw.de/%C3%9Cber-die-KfW/Service/KfW-Newsdienste/RSS-Feed/Pressemitteilungen-der-KfW-Bankengruppe.xml",
+    "https://www.kfw.de/%C3%9Cber-die-KfW/Service/KfW-Newsdienste/RSS-Feed/Aktuelle-Meldungen-aus-der-KfW-Bankengruppe.xml",
+    "https://www.kfw.de/%C3%9Cber-die-KfW/Service/KfW-Newsdienste/RSS-Feed/Aktuelle-Meldungen-aus-dem-Bereich-Research.xml",
+    "https://feeds.megaphone.fm/GLD9218176758",
+    "https://www.bis.org/doclist/mgmtspeeches.rss",
+    "https://www.bis.org/doclist/cbspeeches.rss",
+    "https://www.bis.org/doclist/reshub_papers.rss",
+    "https://www.bis.org/doclist/bis_fsi_publs.rss",
+    "https://www.morganstanley.com/press-releases.msfeed.xml",
+    "https://jpmorganchaseco.gcs-web.com/rss/news-releases.xml",
+    "https://www.ubs.com/global/en/investment-bank/insights-and-data/global-research/_jcr_content/mainpar/toplevelgrid_copy/col1/responsivepodcast.rss20.xml",
+    "https://www.dbresearch.com/PROD/RPS_EN-PROD/RSS_GROUP_HOME_EN.calias",
+    "https://api.substack.com/feed/podcast/2252/private/6578dc75-e126-4d54-83ca-34f1cc4902b8.rss",
+    "https://climate.nasa.gov/news/rss.xml",
+    "https://strathprints.strath.ac.uk/cgi/latest_tool?output=Atom",
+    "https://collections.unu.edu/collection/UNU:1903?tpl=2",
+    "https://www.undrr.org/rss.xml",
+    "https://globalclimaterisks.org/news/feed/",
+    "https://feeds.feedburner.com/GlobalPressRoom",
+    "https://www.dnb.nl/en/rss/16451/6882",
+    "https://www.federalreserve.gov/feeds/press_all.xml",
+    "https://www.federalreserve.gov/feeds/currentfaqs.xml",
+    "https://www.federalreserve.gov/feeds/working_papers.xml",
+    "https://www.federalreserve.gov/feeds/feds.xml",
+    "https://www.federalreserve.gov/feeds/ifdp.xml",
+    "https://news.un.org/feed/subscribe/en/news/all/rss.xml",
+    "https://news.un.org/feed/subscribe/en/news/region/europe/feed/rss.xml",
+    "https://news.un.org/feed/subscribe/en/news/topic/human-rights/feed/rss.xml",
+    "https://news.un.org/feed/subscribe/en/news/topic/climate-change/feed/rss.xml",
     "http://global.oup.com/academic/category/law/?view=RSS",
     "https://www.esrb.europa.eu/rss/press.xml",
     "https://www.esrb.europa.eu/rss/pub.rss",
@@ -391,7 +432,7 @@ RSS_FEEDS = [
     "https://wiiw.ac.at/rss.xml",
     "https://ecipe.org/feed/",
 
-    
+
     # More feeds can be added here
 ]
 
@@ -468,7 +509,8 @@ TRUSTED_SENDERS = [
     "pnasmail@nas.edu",
     "info@drsc.de",
     "briefings@gs.com",
-    "noreply@omfif.org"
+    "noreply@omfif.org",
+    "digital@project-syndicate.org"
 
 ]
 
