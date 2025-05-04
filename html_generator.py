@@ -52,7 +52,7 @@ def enhanced_executive_summary(articles):
     # Create fallback summary
     fallback_summary = f"<p>In the last 24 hours, we found <strong>{len(articles)}</strong> articles matching your tracked keywords "
     fallback_summary += f"from <strong>{rss_count}</strong> RSS feeds, <strong>{email_count}</strong> newsletters, "
-    fallback_summary += f"and <strong>{academic_count}</strong> academic papers.</p>"
+    fallback_summary += f"from <strong>{podcast_count}</strong> podcasts, and <strong>{academic_count}</strong> academic papers.</p>"
 
     try:
         # Initialize Mistral API
@@ -250,7 +250,7 @@ def generate_html(articles, keyword_counts):
     email_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "email")
     academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic")
     podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")  
-    logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {academic_count} academic papers")
+    logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {podcast_count} podcasts, {academic_count} academic papers")
 
     # Generate the executive summary - use the enhanced version
     executive_summary = enhanced_executive_summary(articles)

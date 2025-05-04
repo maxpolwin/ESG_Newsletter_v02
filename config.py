@@ -431,6 +431,9 @@ RSS_FEEDS = [
     "https://www.eea.europa.eu/data-and-maps/figures/RSS2",
     "https://wiiw.ac.at/rss.xml",
     "https://ecipe.org/feed/",
+    "https://www.iaea.org/feeds/topnews",
+    "https://www.iaea.org/feeds/dgstatements",
+    "https://www.iaea.org/feeds/publications"
 
 
     # More feeds can be added here
