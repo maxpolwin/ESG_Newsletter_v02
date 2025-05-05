@@ -33,12 +33,12 @@ def get_keywords():
     "Nature-based", "Partnership for Carbon Accounting Financials", "Hydrogen", "Wasserstoff", "Decarbonising",
     "Decarbonizing", " NGFS ", "climate scenario", "climate policy", "stranded asset", "transition risk", "physical risk",
     "transition path", " VSME ", "(VSME)", "ESG-Score", "ESG-Rating", " CDR ", " CRCF ", "(CRCF)", "Carbon Removal", "Carbon Farming",
-    "Swiss Climate Law", "CO2 Act", "CO2-Act", "HR DD", "HR Due Diligence", "ESG Rating"
+    "Swiss Climate Law", "CO2 Act", "CO2-Act", "HR DD", "HR Due Diligence", "ESG Rating", "ISSB", "GRI"
 }
 
     # Negative keywords - content containing these will be EXCLUDED
     negative_keywords = {
-    "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb"
+    "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb", "Marisken", "trabalho", "Sustentabilidade"
 }
 
     return keywords, negative_keywords

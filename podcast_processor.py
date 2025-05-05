@@ -81,59 +81,19 @@ MARKET_LANGUAGE_MAP = {
     "DE": "de",
     "AT": "de",
     "CH": "de",
-    "ES": "es",
-    "MX": "es",
-    "AR": "es",
-    "CO": "es",
-    "CL": "es",
-    "PE": "es",
-    "VE": "es",
-    "EC": "es",
-    "UY": "es",
-    "PY": "es",
-    "BO": "es",
-    "CR": "es",
-    "PA": "es",
-    "GT": "es",
-    "CU": "es",
-    "DO": "es",
-    "SV": "es",
-    "HN": "es",
-    "NI": "es",
-    "PR": "es",
+    "ES": "es"
 }
 
 # Define markets to search in for each language
 LANGUAGE_MARKETS = {
-    "en": ["US", "GB"],
+    "en": ["US", "GB", "CA", "AU", "NZ"],
     "de": ["DE", "AT", "CH"],
-    "es": [
-        "ES",
-        "MX",
-        "AR",
-        "CO",
-        "CL",
-        "PE",
-        "VE",
-        "EC",
-        "UY",
-        "PY",
-        "BO",
-        "CR",
-        "PA",
-        "GT",
-        "CU",
-        "DO",
-        "SV",
-        "HN",
-        "NI",
-        "PR",
-    ]
+    "es": ["ES"]
 }
 
 # Rate limiting settings
 MAX_CALLS_PER_SECOND = 5  # Conservative rate limit for Spotify API
-MIN_REQUEST_INTERVAL = 0.2  # 200ms minimum between requests
+MIN_REQUEST_INTERVAL = 0.4  # 200ms minimum between requests
 
 class SpotifyAuthError(Exception):
     """Exception raised for Spotify authentication errors."""

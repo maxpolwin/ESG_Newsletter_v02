@@ -585,7 +585,7 @@ def generate_ai_abstract(paper):
         logging.error(f"Error generating AI abstract with Mistral: {e}")
         return None
 
-def process_academic_papers(days_lookback=3, process_all=False): #changed from True to False
+def process_academic_papers(days_lookback=3, process_all=True): #changed from True to False
     """
     Process academic papers for the newsletter.
 
