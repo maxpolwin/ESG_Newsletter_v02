@@ -118,6 +118,391 @@ circuit_breakers = {}  # Dictionary to store circuit breaker states
 # Thread-local storage for browser instances
 thread_local = threading.local()
 
+def process_json_feed(json_feed):
+    """Process JSON Feed format."""
+    try:
+        feed = {
+            'feed': {
+                'title': json_feed.get('title', ''),
+                'link': json_feed.get('home_page_url', '')
+            },
+            'entries': []
+        }
+
+        for item in json_feed.get('items', []):
+            entry = {
+                'title': item.get('title', ''),
+                'link': item.get('url', ''),
+                'description': item.get('content_text', item.get('content_html', '')),
+                'id': item.get('id', ''),
+                'published': item.get('date_published', ''),
+                'updated': item.get('date_modified', '')
+            }
+
+            # Convert timestamps to feedparser format if possible
+            if entry['published']:
+                try:
+                    dt = datetime.fromisoformat(entry['published'].replace('Z', '+00:00'))
+                    entry['published_parsed'] = dt.timetuple()
+                except (ValueError, AttributeError):
+                    pass
+
+            if entry['updated']:
+                try:
+                    dt = datetime.fromisoformat(entry['updated'].replace('Z', '+00:00'))
+                    entry['updated_parsed'] = dt.timetuple()
+                except (ValueError, AttributeError):
+                    pass
+
+            # Add attachments if present
+            if 'attachments' in item:
+                entry['enclosures'] = []
+                for attachment in item['attachments']:
+                    entry['enclosures'].append({
+                        'href': attachment.get('url', ''),
+                        'type': attachment.get('mime_type', ''),
+                        'length': attachment.get('size_in_bytes', 0)
+                    })
+
+            # Add author info
+            if 'author' in item:
+                entry['author'] = item['author'].get('name', '')
+
+            # Add tags/categories
+            if 'tags' in item:
+                entry['tags'] = [{'term': tag} for tag in item['tags']]
+
+            feed['entries'].append(entry)
+
+        return feed
+    except Exception as e:
+        logging.error(f"Error processing JSON feed: {e}")
+        return None
+
+def process_sitemap(content):
+    """Process XML sitemap format."""
+    try:
+        root = ET.fromstring(content)
+        entries = []
+        
+        # Handle both sitemap and sitemapindex
+        if root.tag.endswith('urlset'):
+            for url in root.findall('.//{*}url'):
+                entry = {
+                    'title': url.find('.//{*}loc').text if url.find('.//{*}loc') is not None else '',
+                    'link': url.find('.//{*}loc').text if url.find('.//{*}loc') is not None else '',
+                    'lastmod': url.find('.//{*}lastmod').text if url.find('.//{*}lastmod') is not None else '',
+                    'changefreq': url.find('.//{*}changefreq').text if url.find('.//{*}changefreq') is not None else '',
+                    'priority': url.find('.//{*}priority').text if url.find('.//{*}priority') is not None else ''
+                }
+                entries.append(entry)
+        elif root.tag.endswith('sitemapindex'):
+            for sitemap in root.findall('.//{*}sitemap'):
+                entry = {
+                    'title': sitemap.find('.//{*}loc').text if sitemap.find('.//{*}loc') is not None else '',
+                    'link': sitemap.find('.//{*}loc').text if sitemap.find('.//{*}loc') is not None else '',
+                    'lastmod': sitemap.find('.//{*}lastmod').text if sitemap.find('.//{*}lastmod') is not None else ''
+                }
+                entries.append(entry)
+        
+        return {'entries': entries}
+    except Exception as e:
+        logging.error(f"Error processing sitemap: {e}")
+        return None
+
+def process_opml(content):
+    """Process OPML (Outline Processor Markup Language) format."""
+    try:
+        root = ET.fromstring(content)
+        entries = []
+        
+        for outline in root.findall('.//{*}outline'):
+            entry = {
+                'title': outline.get('text', ''),
+                'link': outline.get('url', ''),
+                'type': outline.get('type', ''),
+                'description': outline.get('description', '')
+            }
+            entries.append(entry)
+        
+        return {'entries': entries}
+    except Exception as e:
+        logging.error(f"Error processing OPML: {e}")
+        return None
+
+def process_podcast_feed(content):
+    """Process podcast-specific RSS feed."""
+    try:
+        feed = feedparser.parse(content)
+        entries = []
+        
+        for entry in feed.entries:
+            # Extract podcast-specific information
+            podcast_entry = {
+                'title': entry.get('title', ''),
+                'link': entry.get('link', ''),
+                'description': entry.get('description', ''),
+                'pub_date': entry.get('published', ''),
+                'duration': entry.get('itunes_duration', ''),
+                'episode_type': entry.get('itunes_episode_type', ''),
+                'explicit': entry.get('itunes_explicit', ''),
+                'image': entry.get('itunes_image', {}).get('href', ''),
+                'audio_url': None
+            }
+            
+            # Get audio enclosure
+            if 'enclosures' in entry:
+                for enclosure in entry.enclosures:
+                    if enclosure.get('type', '').startswith('audio/'):
+                        podcast_entry['audio_url'] = enclosure.get('href', '')
+                        break
+            
+            entries.append(podcast_entry)
+        
+        return {'entries': entries}
+    except Exception as e:
+        logging.error(f"Error processing podcast feed: {e}")
+        return None
+
+def process_newsml_feed(content, format_type):
+    """Process NewsML, NITF, or SportsML format."""
+    try:
+        root = ET.fromstring(content)
+        entries = []
+        
+        # Define namespace mappings based on format type
+        ns_map = {
+            'newsml': 'http://iptc.org/std/NewsML/2003-10-10/',
+            'niftml': 'http://iptc.org/std/NITF/2006-10-18/',
+            'sportsml': 'http://iptc.org/std/SportsML/2008-04-11/'
+        }
+        
+        ns = ns_map.get(format_type, '')
+        
+        # Find all news items
+        for news_item in root.findall(f'.//{{{ns}}}NewsItem'):
+            entry = {
+                'title': news_item.find(f'.//{{{ns}}}HeadLine').text if news_item.find(f'.//{{{ns}}}HeadLine') is not None else '',
+                'link': news_item.find(f'.//{{{ns}}}NewsComponent/{{{ns}}}ContentItem/{{{ns}}}DataContent/{{{ns}}}nitf/{{{ns}}}body/{{{ns}}}body.content/{{{ns}}}p').text if news_item.find(f'.//{{{ns}}}NewsComponent/{{{ns}}}ContentItem/{{{ns}}}DataContent/{{{ns}}}nitf/{{{ns}}}body/{{{ns}}}body.content/{{{ns}}}p') is not None else '',
+                'pub_date': news_item.find(f'.//{{{ns}}}FirstCreated').text if news_item.find(f'.//{{{ns}}}FirstCreated') is not None else '',
+                'description': news_item.find(f'.//{{{ns}}}NewsComponent/{{{ns}}}ContentItem/{{{ns}}}DataContent/{{{ns}}}nitf/{{{ns}}}body/{{{ns}}}body.head/{{{ns}}}abstract').text if news_item.find(f'.//{{{ns}}}NewsComponent/{{{ns}}}ContentItem/{{{ns}}}DataContent/{{{ns}}}nitf/{{{ns}}}body/{{{ns}}}body.head/{{{ns}}}abstract') is not None else ''
+            }
+            entries.append(entry)
+        
+        return {'entries': entries}
+    except Exception as e:
+        logging.error(f"Error processing {format_type} feed: {e}")
+        return None
+
+def process_xbrl_feed(content):
+    """Process XBRL (eXtensible Business Reporting Language) format."""
+    try:
+        root = ET.fromstring(content)
+        entries = []
+        
+        # Process XBRL context and fact data
+        for context in root.findall('.//{http://www.xbrl.org/2003/instance}context'):
+            context_id = context.get('id', '')
+            period = context.find('.//{http://www.xbrl.org/2003/instance}period')
+            if period is not None:
+                start_date = period.find('.//{http://www.xbrl.org/2003/instance}startDate')
+                end_date = period.find('.//{http://www.xbrl.org/2003/instance}endDate')
+                
+                entry = {
+                    'title': f"XBRL Report - {context_id}",
+                    'link': '',
+                    'pub_date': start_date.text if start_date is not None else '',
+                    'end_date': end_date.text if end_date is not None else '',
+                    'context_id': context_id
+                }
+                
+                # Add facts for this context
+                facts = []
+                for fact in root.findall(f'.//*[@contextRef="{context_id}"]'):
+                    facts.append({
+                        'name': fact.tag.split('}')[-1],
+                        'value': fact.text,
+                        'unit': fact.get('unitRef', '')
+                    })
+                
+                entry['facts'] = facts
+                entries.append(entry)
+        
+        return {'entries': entries}
+    except Exception as e:
+        logging.error(f"Error processing XBRL feed: {e}")
+        return None
+
+def process_oai_pmh_feed(content):
+    """Process OAI-PMH (Open Archives Initiative Protocol for Metadata Harvesting) format."""
+    try:
+        root = ET.fromstring(content)
+        entries = []
+        
+        # Process OAI-PMH records
+        for record in root.findall('.//{http://www.openarchives.org/OAI/2.0/}record'):
+            header = record.find('.//{http://www.openarchives.org/OAI/2.0/}header')
+            metadata = record.find('.//{http://www.openarchives.org/OAI/2.0/}metadata')
+            
+            if header is not None:
+                entry = {
+                    'title': header.find('.//{http://www.openarchives.org/OAI/2.0/}identifier').text if header.find('.//{http://www.openarchives.org/OAI/2.0/}identifier') is not None else '',
+                    'link': header.find('.//{http://www.openarchives.org/OAI/2.0/}identifier').text if header.find('.//{http://www.openarchives.org/OAI/2.0/}identifier') is not None else '',
+                    'pub_date': header.find('.//{http://www.openarchives.org/OAI/2.0/}datestamp').text if header.find('.//{http://www.openarchives.org/OAI/2.0/}datestamp') is not None else '',
+                    'status': header.get('status', '')
+                }
+                
+                # Add metadata if available
+                if metadata is not None:
+                    entry['metadata'] = ET.tostring(metadata, encoding='unicode')
+                
+                entries.append(entry)
+        
+        return {'entries': entries}
+    except Exception as e:
+        logging.error(f"Error processing OAI-PMH feed: {e}")
+        return None
+
+def process_rdf_feed(content, format_type):
+    """Process RDF-based feeds (DCAT or Schema.org)."""
+    try:
+        root = ET.fromstring(content)
+        entries = []
+        
+        # Define namespace mappings
+        ns_map = {
+            'dcat': 'http://www.w3.org/ns/dcat#',
+            'schema': 'http://schema.org/'
+        }
+        
+        ns = ns_map.get(format_type, '')
+        
+        # Process RDF descriptions
+        for desc in root.findall(f'.//{{{ns}}}Description'):
+            entry = {
+                'title': desc.find(f'.//{{{ns}}}title').text if desc.find(f'.//{{{ns}}}title') is not None else '',
+                'link': desc.find(f'.//{{{ns}}}url').text if desc.find(f'.//{{{ns}}}url') is not None else '',
+                'description': desc.find(f'.//{{{ns}}}description').text if desc.find(f'.//{{{ns}}}description') is not None else '',
+                'pub_date': desc.find(f'.//{{{ns}}}datePublished').text if desc.find(f'.//{{{ns}}}datePublished') is not None else ''
+            }
+            
+            # Add additional properties based on format type
+            if format_type == 'dcat':
+                entry['dataset'] = {
+                    'distribution': [dist.text for dist in desc.findall(f'.//{{{ns}}}distribution')],
+                    'keyword': [kw.text for kw in desc.findall(f'.//{{{ns}}}keyword')]
+                }
+            elif format_type == 'schema.org':
+                entry['schema_type'] = desc.get(f'{{{ns}}}type', '')
+            
+            entries.append(entry)
+        
+        return {'entries': entries}
+    except Exception as e:
+        logging.error(f"Error processing {format_type} feed: {e}")
+        return None
+
+def normalize_feed_entry(entry, format_type):
+    """Normalize different feed formats into a common structure."""
+    normalized = {
+        'title': '',
+        'link': '',
+        'description': '',
+        'pub_date': '',
+        'author': '',
+        'categories': [],
+        'source_type': format_type
+    }
+
+    if format_type == 'json':
+        normalized.update({
+            'title': entry.get('title', ''),
+            'link': entry.get('url', ''),
+            'description': entry.get('content_text', entry.get('content_html', '')),
+            'pub_date': entry.get('date_published', ''),
+            'author': entry.get('author', {}).get('name', ''),
+            'categories': entry.get('tags', [])
+        })
+    
+    elif format_type == 'sitemap':
+        normalized.update({
+            'title': entry.get('title', ''),
+            'link': entry.get('link', ''),
+            'pub_date': entry.get('lastmod', ''),
+            'description': f"Priority: {entry.get('priority', '')}, Change Frequency: {entry.get('changefreq', '')}"
+        })
+    
+    elif format_type == 'opml':
+        normalized.update({
+            'title': entry.get('title', ''),
+            'link': entry.get('link', ''),
+            'description': entry.get('description', ''),
+            'type': entry.get('type', '')
+        })
+    
+    elif format_type == 'podcast':
+        normalized.update({
+            'title': entry.get('title', ''),
+            'link': entry.get('link', ''),
+            'description': entry.get('description', ''),
+            'pub_date': entry.get('pub_date', ''),
+            'duration': entry.get('duration', ''),
+            'episode_type': entry.get('episode_type', ''),
+            'audio_url': entry.get('audio_url', '')
+        })
+    
+    elif format_type in ['newsml', 'niftml', 'sportsml']:
+        normalized.update({
+            'title': entry.get('title', ''),
+            'link': entry.get('link', ''),
+            'description': entry.get('description', ''),
+            'pub_date': entry.get('pub_date', '')
+        })
+    
+    elif format_type == 'xbrl':
+        normalized.update({
+            'title': entry.get('title', ''),
+            'link': entry.get('link', ''),
+            'pub_date': entry.get('pub_date', ''),
+            'end_date': entry.get('end_date', ''),
+            'facts': entry.get('facts', [])
+        })
+    
+    elif format_type == 'oai-pmh':
+        normalized.update({
+            'title': entry.get('title', ''),
+            'link': entry.get('link', ''),
+            'pub_date': entry.get('pub_date', ''),
+            'status': entry.get('status', ''),
+            'metadata': entry.get('metadata', '')
+        })
+    
+    elif format_type in ['dcat', 'schema.org']:
+        normalized.update({
+            'title': entry.get('title', ''),
+            'link': entry.get('link', ''),
+            'description': entry.get('description', ''),
+            'pub_date': entry.get('pub_date', '')
+        })
+        
+        if format_type == 'dcat':
+            normalized['dataset'] = entry.get('dataset', {})
+        elif format_type == 'schema.org':
+            normalized['schema_type'] = entry.get('schema_type', '')
+    
+    else:
+        # Default to standard RSS/Atom format
+        normalized.update({
+            'title': entry.get('title', ''),
+            'link': entry.get('link', ''),
+            'description': entry.get('description', ''),
+            'pub_date': entry.get('published', entry.get('updated', '')),
+            'author': entry.get('author', ''),
+            'categories': [tag.get('term', '') for tag in entry.get('tags', [])]
+        })
+    
+    return normalized
+
 class CircuitBreaker:
     """Implements the circuit breaker pattern for feed fetching."""
 
@@ -722,7 +1107,7 @@ def validate_feed_content(content):
             logging.warning(f"Failed to decode with {encoding}, trying UTF-8 with ignore: {e}")
             content_str = content.decode('utf-8', errors='ignore')
 
-        # Basic XML validation
+        # Parse XML
         try:
             root = ET.fromstring(content_str)
             logging.debug(f"Successfully parsed XML with root tag: {root.tag}")
@@ -732,12 +1117,37 @@ def validate_feed_content(content):
             return None
 
         # Check for common feed formats
-        if root.tag.endswith('rss') or root.tag.endswith('feed') or root.tag.endswith('RDF') or 'RDF' in root.tag:
-            logging.info(f"Valid feed format detected: {root.tag}")
-            return content_str
+        feed_types = {
+            'rss': ['rss', 'RSS', 'rdf:RDF'],
+            'atom': ['feed', 'atom:feed'],
+            'rdf': ['RDF', 'rdf:RDF'],
+            'sitemap': ['urlset', 'sitemapindex'],
+            'opml': ['opml'],
+            'podcast': ['rss', 'RSS'],  # Podcast feeds are RSS with specific namespaces
+            'newsml': ['NewsML'],
+            'niftml': ['NITF'],
+            'sportsml': ['SportsML'],
+            'xbrl': ['xbrl'],
+            'oai-pmh': ['OAI-PMH'],
+            'dcat': ['rdf:RDF'],  # DCAT (Data Catalog Vocabulary)
+            'schema.org': ['rdf:RDF']  # Schema.org structured data
+        }
+
+        # Check root tag against known formats
+        root_tag = root.tag.split('}')[-1] if '}' in root.tag else root.tag
+        detected_format = None
+
+        for format_name, tags in feed_types.items():
+            if root_tag in tags:
+                detected_format = format_name
+                break
+
+        if detected_format:
+            logging.info(f"Valid {detected_format} format detected: {root.tag}")
+            return content_str, detected_format
         else:
-            logging.error(f"Feed is not in a recognized format. Root tag: {root.tag}")
-            return None
+            logging.warning(f"Unknown XML format. Root tag: {root.tag}")
+            return content_str, 'unknown'
 
     except Exception as e:
         logging.error(f"Error validating feed content: {e}")
@@ -921,14 +1331,15 @@ def fetch_feed_with_retry(feed_url):
                 content = fetch_with_browser(feed_url)
                 if content:
                     # Validate feed content
-                    processed_content = validate_feed_content(content.encode('utf-8') if isinstance(content, str) else content)
-                    if processed_content:
+                    validation_result = validate_feed_content(content.encode('utf-8') if isinstance(content, str) else content)
+                    if validation_result:
+                        content, format_type = validation_result
                         circuit_breaker.record_success(feed_url)
                         feed_monitor.record_fetch(feed_url, True)
                         # If feed was previously problematic but now succeeded, reset its status
                         if feed_url in problematic_feeds:
                             del problematic_feeds[feed_url]
-                        return processed_content
+                        return content, format_type
 
             # If we suspect Cloudflare protection and haven't tried bypassing it yet
             if attempt > 3 and USE_BROWSER_AUTOMATION and not cloudflare_tried and ('cloudflare' in feed_url.lower() or any('cloudflare' in str(e).lower() for e in problematic_feeds.get(feed_url, []))):
@@ -938,13 +1349,14 @@ def fetch_feed_with_retry(feed_url):
                 if cf_result:
                     cloudflare_cookies = cf_result['cookies']
                     content = cf_result['content']
-                    processed_content = validate_feed_content(content.encode('utf-8') if isinstance(content, str) else content)
-                    if processed_content:
+                    validation_result = validate_feed_content(content.encode('utf-8') if isinstance(content, str) else content)
+                    if validation_result:
+                        content, format_type = validation_result
                         circuit_breaker.record_success(feed_url)
                         feed_monitor.record_fetch(feed_url, True)
                         if feed_url in problematic_feeds:
                             del problematic_feeds[feed_url]
-                        return processed_content
+                        return content, format_type
 
             # Try each header combination
             for header_func in header_combinations:
@@ -992,8 +1404,8 @@ def fetch_feed_with_retry(feed_url):
                     logging.info(f"Response status: {response.status_code}, Content-Type: {response.headers.get('Content-Type', 'unknown')}")
 
                     # Validate feed content
-                    content = validate_feed_content(response.content)
-                    if not content:
+                    validation_result = validate_feed_content(response.content)
+                    if not validation_result:
                         raise ValueError("Invalid feed content")
 
                     # If feed was previously problematic but now succeeded, reset its status
@@ -1002,7 +1414,7 @@ def fetch_feed_with_retry(feed_url):
 
                     circuit_breaker.record_success(feed_url)
                     feed_monitor.record_fetch(feed_url, True)
-                    return content
+                    return response.content, 'unknown'
 
                 except requests.exceptions.HTTPError as e:
                     if e.response.status_code == 403:
@@ -1272,6 +1684,9 @@ def fetch_rss_entries():
     now = time.time()
     unique_article_ids = set()
 
+    # Register custom namespaces at the start
+    register_custom_namespaces()
+
     # Group feeds by domain to avoid hammering the same server
     domain_grouped_feeds = {}
     for feed_url in RSS_FEEDS:
@@ -1290,74 +1705,42 @@ def fetch_rss_entries():
 
         for feed_url in feeds:
             try:
-                feed_content = fetch_feed_with_retry(feed_url)
-
+                feed_content, format_type = fetch_feed_with_retry(feed_url)
                 if not feed_content:
                     continue  # Skip to next feed if fetch failed
 
-                # Handle JSON Feed format
-                if isinstance(feed_content, bytes) and feed_content.strip().startswith(b'{'):
+                # Process based on format type
+                if format_type == 'json':
                     try:
                         json_feed = json.loads(feed_content)
                         if 'version' in json_feed and json_feed.get('version', '').startswith('https://jsonfeed.org/version/'):
-                            # Convert JSON Feed to feedparser-compatible format
-                            feed = {
-                                'feed': {
-                                    'title': json_feed.get('title', ''),
-                                    'link': json_feed.get('home_page_url', '')
-                                },
-                                'entries': []
-                            }
-
-                            for item in json_feed.get('items', []):
-                                entry = {
-                                    'title': item.get('title', ''),
-                                    'link': item.get('url', ''),
-                                    'description': item.get('content_text', item.get('content_html', '')),
-                                    'id': item.get('id', ''),
-                                    'published': item.get('date_published', ''),
-                                    'updated': item.get('date_modified', '')
-                                }
-
-                                # Convert timestamps to feedparser format if possible
-                                if entry['published']:
-                                    try:
-                                        dt = datetime.fromisoformat(entry['published'].replace('Z', '+00:00'))
-                                        entry['published_parsed'] = dt.timetuple()
-                                    except (ValueError, AttributeError):
-                                        pass
-
-                                if entry['updated']:
-                                    try:
-                                        dt = datetime.fromisoformat(entry['updated'].replace('Z', '+00:00'))
-                                        entry['updated_parsed'] = dt.timetuple()
-                                    except (ValueError, AttributeError):
-                                        pass
-
-                                # Add attachments if present
-                                if 'attachments' in item:
-                                    entry['enclosures'] = []
-                                    for attachment in item['attachments']:
-                                        entry['enclosures'].append({
-                                            'href': attachment.get('url', ''),
-                                            'type': attachment.get('mime_type', ''),
-                                            'length': attachment.get('size_in_bytes', 0)
-                                        })
-
-                                # Add author info
-                                if 'author' in item:
-                                    entry['author'] = item['author'].get('name', '')
-
-                                # Add tags/categories
-                                if 'tags' in item:
-                                    entry['tags'] = [{'term': tag} for tag in item['tags']]
-
-                                feed['entries'].append(entry)
-                    except Exception as e:
-                        logging.error(f"Error parsing JSON Feed: {e}")
+                            feed = process_json_feed(json_feed)
+                    except json.JSONDecodeError:
                         continue
+                
+                elif format_type == 'sitemap':
+                    feed = process_sitemap(feed_content)
+                
+                elif format_type == 'opml':
+                    feed = process_opml(feed_content)
+                
+                elif format_type == 'podcast':
+                    feed = process_podcast_feed(feed_content)
+                
+                elif format_type in ['newsml', 'niftml', 'sportsml']:
+                    feed = process_newsml_feed(feed_content, format_type)
+                
+                elif format_type == 'xbrl':
+                    feed = process_xbrl_feed(feed_content)
+                
+                elif format_type == 'oai-pmh':
+                    feed = process_oai_pmh_feed(feed_content)
+                
+                elif format_type in ['dcat', 'schema.org']:
+                    feed = process_rdf_feed(feed_content, format_type)
+                
                 else:
-                    # Parse regular RSS/Atom feed
+                    # Default to standard RSS/Atom processing
                     feed = feedparser.parse(feed_content)
 
                 # Get feed title for source info
@@ -1404,7 +1787,7 @@ def fetch_rss_entries():
                                         break
 
                                 except Exception as e:
-                                    logging.error(f"Failed to parse date from {field}: {e}") #lowered from debug to error
+                                    logging.error(f"Failed to parse date from {field}: {e}")
 
                         if not published_time:
                             logging.warning(f"No timestamp found for article: {entry.get('title', 'No Title')}. Using current time.")
@@ -1420,14 +1803,19 @@ def fetch_rss_entries():
                         # Only add if we haven't seen this article before
                         if article_id not in unique_article_ids:
                             unique_article_ids.add(article_id)
-                            # Add article ID and source info to the entry for later reference
-                            entry['article_id'] = article_id
-                            entry['source_info'] = {
+                            
+                            # Normalize the entry based on its format type
+                            normalized_entry = normalize_feed_entry(entry, format_type)
+                            
+                            # Add article ID and source info
+                            normalized_entry['article_id'] = article_id
+                            normalized_entry['source_info'] = {
                                 'title': feed_title,
                                 'url': feed_url,
                                 'domain': get_domain_from_url(feed_url)
                             }
-                            entries.append(entry)
+                            
+                            entries.append(normalized_entry)
 
                 logging.info(f"Fetched from feed: {feed_url}")
                 print(f"Fetched from feed: {feed_url}")
@@ -1651,18 +2039,41 @@ def process_entry(entry):
 def process_rss_feeds():
     """Main function to process RSS feeds."""
     try:
+        # Register namespaces at the start
+        register_custom_namespaces()
+        
         entries = fetch_rss_entries()
         if not entries:
-            logging.warning("No RSS articles found within the last 24 hours.")
-            print("No RSS articles found within the last 24 hours.")
+            logging.warning("No articles found within the last 24 hours.")
+            print("No articles found within the last 24 hours.")
             return [], Counter()
 
+        # All entries are already normalized from fetch_rss_entries
         filtered_articles, keyword_counts = filter_rss_entries(entries)
         return filtered_articles, keyword_counts
     except Exception as e:
-        logging.error(f"Error processing RSS feeds: {e}", exc_info=True)
-        print(f"Error processing RSS feeds: {e}")
+        logging.error(f"Error processing feeds: {e}", exc_info=True)
+        print(f"Error processing feeds: {e}")
         return [], Counter()
+
+def register_custom_namespaces():
+    """Register common XML namespaces."""
+    namespaces = {
+        'itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd',
+        'dc': 'http://purl.org/dc/elements/1.1/',
+        'content': 'http://purl.org/rss/1.0/modules/content/',
+        'media': 'http://search.yahoo.com/mrss/',
+        'newsml': 'http://iptc.org/std/NewsML/2003-10-10/',
+        'niftml': 'http://iptc.org/std/NITF/2006-10-18/',
+        'sportsml': 'http://iptc.org/std/SportsML/2008-04-11/',
+        'xbrl': 'http://www.xbrl.org/2003/instance',
+        'oai-pmh': 'http://www.openarchives.org/OAI/2.0/',
+        'dcat': 'http://www.w3.org/ns/dcat#',
+        'schema': 'http://schema.org/'
+    }
+    
+    for prefix, uri in namespaces.items():
+        ET.register_namespace(prefix, uri)
 
 # If script is run directly
 if __name__ == "__main__":

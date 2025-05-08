@@ -439,9 +439,15 @@ RSS_FEEDS = [
     "https://ecipe.org/feed/",
     "https://www.iaea.org/feeds/topnews",
     "https://www.iaea.org/feeds/dgstatements",
-    "https://www.iaea.org/feeds/publications"
-
-
+    "https://www.iaea.org/feeds/publications",
+    "https://www.deutschlandfunk.de/nachrichten-100.rss",
+    "https://www.deutschlandfunk.de/politikportal-100.rss",
+    "https://www.deutschlandfunk.de/wirtschaft-106.rss",
+    "https://www.deutschlandfunk.de/wissen-106.rss",
+    "https://www.deutschlandfunk.de/kulturportal-100.rss",
+    "https://www.deutschlandfunk.de/europa-112.rss",
+    "https://www.deutschlandfunk.de/gesellschaft-106.rss",
+    "https://www.deutschlandfunk.de/sportportal-100.rss"
     # More feeds can be added here
 ]
 
