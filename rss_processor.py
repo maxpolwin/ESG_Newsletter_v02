@@ -37,6 +37,10 @@ import traceback
 import threading
 from keywords_config import get_keywords
 from utils import normalize_text, generate_article_id, get_domain_from_url
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
 
 # For PDF processing
 try:
@@ -359,6 +363,31 @@ def get_random_proxy():
         return None
     return random.choice(PROXY_LIST)
 
+def setup_chrome_driver(headless=True):
+    chrome_options = Options()
+    if headless:
+        chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    
+    # Add language setting
+    chrome_options.add_argument("--lang=en-US,en;q=0.9")
+    
+    # Disable automation flags
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+    
+    # Disable images to speed up loading
+    chrome_options.add_experimental_option("prefs", {
+        "profile.managed_default_content_settings.images": 2
+    })
+    
+    # Use webdriver-manager to handle driver installation
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=chrome_options)
+
 def get_browser(headless=True):
     """Get or create a browser instance for this thread."""
     # Use thread-local storage to keep browser instances separate
@@ -366,31 +395,7 @@ def get_browser(headless=True):
         # Acquire semaphore to limit concurrent browser instances
         browser_pool_semaphore.acquire()
         try:
-            chrome_options = Options()
-            if headless:
-                chrome_options.add_argument("--headless")
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--window-size=1920,1080")
-
-            # Add random user agent
-            user_agent = get_random_user_agent()
-            chrome_options.add_argument(f"--user-agent={user_agent}")
-
-            # Add language setting
-            chrome_options.add_argument("--lang=en-US,en;q=0.9")
-
-            # Disable automation flags
-            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            chrome_options.add_experimental_option('useAutomationExtension', False)
-
-            # Disable images to speed up loading
-            chrome_options.add_experimental_option("prefs", {
-                "profile.managed_default_content_settings.images": 2
-            })
-
-            browser = webdriver.Chrome(options=chrome_options)
+            browser = setup_chrome_driver(headless)
             thread_local.browser = browser
 
             # Register this browser in the pool
@@ -694,47 +699,17 @@ def get_custom_headers(feed_url):
 def validate_feed_content(content):
     """Validate and sanitize feed content before parsing."""
     try:
+        # Log the first few characters of the content
+        logging.debug(f"Content starts with: {content[:100]}")
+        
         # Check content length
-        if len(content) < 100:  # Minimum reasonable size for a feed
-            logging.error("Feed content too short")
+        if len(content) < 100:
+            logging.error(f"Feed content too short: {len(content)} bytes")
             return None
-
-        # Check if content might be JSON Feed
-        if content.strip().startswith(b'{'):
-            import json
-            try:
-                json_data = json.loads(content)
-                # Check if it's a JSON Feed
-                if 'version' in json_data and json_data.get('version', '').startswith('https://jsonfeed.org/version/'):
-                    logging.info("Detected JSON Feed format")
-                    return content  # Valid JSON feed
-            except json.JSONDecodeError:
-                pass  # Not valid JSON, continue with XML validation
-
-        # Check for gzipped content
-        try:
-            if content.startswith(b'\x1f\x8b\x08'):
-                content = gzip.decompress(content)
-                logging.info("Decompressed gzipped content")
-        except Exception as e:
-            logging.warning(f"Failed to decompress content: {e}")
-
-        # Check for HTML with embedded RSS
-        if b'<html' in content.lower() and (b'application/rss+xml' in content.lower() or b'application/atom+xml' in content.lower()):
-            logging.warning("Received HTML page with embedded feed link instead of direct feed")
-            # Parse HTML to find feed URL
-            try:
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(content, 'html.parser')
-                feed_link = soup.find('link', type=lambda t: t and ('rss+xml' in t or 'atom+xml' in t))
-                if feed_link and feed_link.get('href'):
-                    logging.info(f"Found embedded feed link: {feed_link['href']}")
-            except Exception as e:
-                logging.error(f"Error parsing HTML for feed link: {e}")
-            return None  # Return None to indicate need to fetch the actual feed URL
 
         # Detect encoding
         encoding_result = chardet.detect(content)
+        logging.debug(f"Detected encoding: {encoding_result}")
         encoding = encoding_result['encoding']
         if not encoding:
             logging.warning("Could not detect encoding, trying UTF-8")
@@ -742,95 +717,32 @@ def validate_feed_content(content):
 
         try:
             content_str = content.decode(encoding)
-        except UnicodeDecodeError:
-            logging.warning(f"Failed to decode with {encoding}, trying UTF-8 with ignore")
+            logging.debug(f"Successfully decoded content with {encoding}")
+        except UnicodeDecodeError as e:
+            logging.warning(f"Failed to decode with {encoding}, trying UTF-8 with ignore: {e}")
             content_str = content.decode('utf-8', errors='ignore')
 
         # Basic XML validation
         try:
             root = ET.fromstring(content_str)
+            logging.debug(f"Successfully parsed XML with root tag: {root.tag}")
         except ET.ParseError as e:
             logging.error(f"Invalid XML content in feed: {e}")
-
-            # Try cleaning the XML
-            try:
-                # Remove problematic characters
-                cleaned_content = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', content_str)
-                # Try parsing again
-                root = ET.fromstring(cleaned_content)
-                content_str = cleaned_content
-                logging.info("Successfully cleaned and parsed XML content")
-            except ET.ParseError:
-                # Still failed, return None
-                return None
+            logging.error(f"First 500 characters of content: {content_str[:500]}")
+            return None
 
         # Check for common feed formats
-        if root.tag.endswith('rss') or root.tag.endswith('feed') or root.tag.endswith('RDF') or 'RDF' in root.tag or root.tag.endswith('opml'):
-            # RSS 2.0 format
-            if root.tag.endswith('rss'):
-                channel = root.find('channel')
-                if channel is None:
-                    logging.error("RSS feed missing channel element")
-                    return None
-                if channel.find('title') is None:
-                    logging.error("RSS feed missing title element")
-                    return None
-
-                # Check for Media RSS extensions
-                media_ns = '{http://search.yahoo.com/mrss/}'
-                if any(media_ns in elem.tag for elem in root.iter()):
-                    logging.info("Detected Media RSS extensions")
-
-                logging.info("Validated RSS 2.0 format")
-                return content_str
-
-            # RDF-based RSS 1.0
-            elif 'RDF' in root.tag:
-                # Find channel element with various namespace possibilities
-                namespaces = [
-                    '{http://purl.org/rss/1.0/}',
-                    '{http://www.w3.org/1999/02/22-rdf-syntax-ns#}',
-                    ''  # No namespace
-                ]
-
-                channel_found = False
-                for ns in namespaces:
-                    channel = root.find(f'.//{ns}channel')
-                    if channel is not None:
-                        channel_found = True
-                        break
-
-                if not channel_found:
-                    logging.warning("RDF feed with unusual structure, proceeding anyway")
-
-                logging.info("Validated RDF-based RSS 1.0 format")
-                return content_str
-
-            # OPML format
-            elif root.tag.endswith('opml'):
-                # Basic OPML validation
-                head = root.find('head')
-                body = root.find('body')
-                if body is None:
-                    logging.error("OPML feed missing body element")
-                    return None
-                logging.info("Detected OPML format")
-                return content_str
-
-            # Atom feed
-            else:
-                if root.find('title') is None and root.find('.//{http://www.w3.org/2005/Atom}title') is None:
-                    logging.error("Atom feed missing title element")
-                    return None
-
-                logging.info("Validated Atom feed format")
-                return content_str
+        if root.tag.endswith('rss') or root.tag.endswith('feed') or root.tag.endswith('RDF') or 'RDF' in root.tag:
+            logging.info(f"Valid feed format detected: {root.tag}")
+            return content_str
         else:
             logging.error(f"Feed is not in a recognized format. Root tag: {root.tag}")
             return None
 
     except Exception as e:
         logging.error(f"Error validating feed content: {e}")
+        logging.error(f"Content type: {type(content)}")
+        logging.error(f"Content length: {len(content)}")
         return None
 
 def sanitize_feed_url(url):

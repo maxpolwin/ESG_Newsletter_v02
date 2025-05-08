@@ -46,6 +46,7 @@ ENV/
 # Project specific
 latest_articles/
 css/
+cache/
 *.log
 *.pdf
 *.docx

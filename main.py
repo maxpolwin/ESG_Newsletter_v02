@@ -105,7 +105,7 @@ def process_all():
         for keyword, count in email_keyword_counts.items():
             all_keyword_counts[keyword] += count
 
-        # Generate HTML report
+        # Generate HTML report only if we have articles
         if all_articles:
             html_file = generate_html(all_articles, all_keyword_counts)
             logging.info(f"Generated HTML report: {html_file}")

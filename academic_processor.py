@@ -17,10 +17,11 @@ import os
 from collections import Counter
 import PyPDF2
 from mistral import MistralAPI  # Ensure this import is at the top of your file
+import json
 
 
 # Import configuration
-from config import KEYWORDS
+from config import KEYWORDS, CACHE_DIR
 
 # Base URL for Semantic Scholar API
 SEMANTIC_SCHOLAR_API_BASE = "https://api.semanticscholar.org/graph/v1"
@@ -31,14 +32,14 @@ MAX_RESULTS_TO_FETCH = 200
 # Maximum number of papers per keyword to return after filtering
 MAX_PAPERS_PER_KEYWORD = 10
 
-# New approach: distribute API calls over a 60-minute period
-TOTAL_TIME_MINUTES = 0.5  # Total time period in minutes . changed from 60 to 0.5
-TOTAL_TIME_SECONDS = TOTAL_TIME_MINUTES * 60  # Convert to seconds
+# Time limit configuration
+MAX_TOTAL_TIME_MINUTES = 150  # 2.5 hours maximum
+MAX_TOTAL_TIME_SECONDS = MAX_TOTAL_TIME_MINUTES * 60
 
-# Safety parameters for API fair use
-MIN_SECONDS_BETWEEN_CALLS = 20  # Minimum seconds between calls to respect API limits
-SAFETY_FACTOR = 3  # Additional safety margin for timing
-MAX_CALLS_PER_MINUTE = 121  # Conservative maximum call rate
+# Safety parameters for API fair use - adjusted for 2.5 hour limit
+MIN_SECONDS_BETWEEN_CALLS = 5  # Reduced from 20 to allow more calls within time limit
+SAFETY_FACTOR = 1.5  # Reduced from 3 to be less conservative
+MAX_CALLS_PER_MINUTE = 121  # Keep this as is since it's already reasonable
 
 # We'll dynamically calculate the delay in the process_academic_papers function
 # based on the actual number of keywords to process
@@ -585,30 +586,89 @@ def generate_ai_abstract(paper):
         logging.error(f"Error generating AI abstract with Mistral: {e}")
         return None
 
-def process_academic_papers(days_lookback=3, process_all=True): #changed from True to False
+def get_newsletter_history():
+    """
+    Get the history of articles included in previous newsletters.
+    Returns a set of article IDs that have been included before.
+    """
+    history_file = os.path.join(CACHE_DIR, "newsletter_history.json")
+    if not os.path.exists(history_file):
+        return set()
+        
+    try:
+        with open(history_file, 'r') as f:
+            history_data = json.load(f)
+            return set(history_data.get('article_ids', []))
+    except Exception as e:
+        logging.error(f"Error reading newsletter history: {e}")
+        return set()
+
+def update_newsletter_history(article_ids):
+    """
+    Update the history of articles included in newsletters.
+    """
+    history_file = os.path.join(CACHE_DIR, "newsletter_history.json")
+    try:
+        # Read existing history
+        existing_history = set()
+        if os.path.exists(history_file):
+            with open(history_file, 'r') as f:
+                history_data = json.load(f)
+                existing_history = set(history_data.get('article_ids', []))
+        
+        # Add new article IDs
+        updated_history = existing_history.union(article_ids)
+        
+        # Save updated history
+        with open(history_file, 'w') as f:
+            json.dump({
+                'article_ids': list(updated_history),
+                'last_updated': datetime.now().isoformat()
+            }, f)
+            
+        logging.info(f"Updated newsletter history with {len(article_ids)} new articles")
+    except Exception as e:
+        logging.error(f"Error updating newsletter history: {e}")
+
+def filter_duplicate_articles(papers, history):
+    """
+    Filter out articles that have been included in previous newsletters.
+    """
+    filtered_papers = []
+    duplicate_count = 0
+    
+    for paper in papers:
+        paper_id = paper.get('paperId')
+        if paper_id and paper_id not in history:
+            filtered_papers.append(paper)
+        else:
+            duplicate_count += 1
+            
+    if duplicate_count > 0:
+        logging.info(f"Filtered out {duplicate_count} duplicate articles")
+        
+    return filtered_papers
+
+def process_academic_papers(days_lookback=3, process_all=True):
     """
     Process academic papers for the newsletter.
-
-    Args:
-        days_lookback (int): Number of days to look back for papers (default: 1 day)
-        process_all (bool): Whether to process all keywords or limit to 10
-
-    Returns:
-        tuple: (list of papers, keyword counter)
+    Now includes duplicate checking against newsletter history.
     """
     global RATE_LIMIT_DELAY, api_call_times
 
-    # Ensure days_lookback is an integer
-    days_lookback = ensure_int(days_lookback, 1)
-
     # Reset timing data for a fresh start
     api_call_times = []
+    start_time = time.time()
 
     logging.info(f"Fetching academic papers from Semantic Scholar (last {days_lookback} day(s))...")
     debug_print("\n" + "*"*40, 1)
     debug_print(f"STARTING SEMANTIC SCHOLAR API PROCESSING - LAST {days_lookback*24} HOURS", 1)
     debug_print("*"*40, 1)
     debug_print(f"Fetching academic papers published in the last {days_lookback*24} hours...", 1)
+
+    # Get newsletter history
+    history = get_newsletter_history()
+    logging.info(f"Loaded {len(history)} articles from newsletter history")
 
     all_papers = []
     keyword_counts = Counter()
@@ -636,52 +696,50 @@ def process_academic_papers(days_lookback=3, process_all=True): #changed from Tr
         logging.info(f"Processing {len(keywords_to_process)} keywords (limited to 10)")
         debug_print(f"\nProcessing {len(keywords_to_process)} keywords (limited to 10)", 1)
 
-    # Calculate the delay between API calls to spread evenly over the total time period
+    # Calculate the delay between API calls to fit within 2.5 hours
     num_keywords = len(keywords_to_process)
-
-    # If we have no keywords or just one, use a default delay
+    
     if num_keywords <= 1:
-        RATE_LIMIT_DELAY = 10  # Default 10 seconds delay if only one keyword
+        RATE_LIMIT_DELAY = 5  # Default delay for single keyword
     else:
-        # Distribute (num_keywords) API calls evenly over TOTAL_TIME_SECONDS
-        # We need (num_keywords - 1) gaps between the calls
-        RATE_LIMIT_DELAY = TOTAL_TIME_SECONDS / (num_keywords - 1) if num_keywords > 1 else TOTAL_TIME_SECONDS
+        # Calculate maximum possible delay to fit within 2.5 hours
+        max_delay = MAX_TOTAL_TIME_SECONDS / (num_keywords - 1)
+        
+        # Calculate minimum delay needed for rate limiting
+        min_delay = 60 / MAX_CALLS_PER_MINUTE
+        
+        # Use the smaller of the two delays
+        RATE_LIMIT_DELAY = min(max_delay, min_delay)
+        
+        # Ensure we don't go below minimum safety delay
+        RATE_LIMIT_DELAY = max(RATE_LIMIT_DELAY, MIN_SECONDS_BETWEEN_CALLS)
 
-    # Apply minimum safety delay to start with
-    min_delay = 60 / MAX_CALLS_PER_MINUTE  # Ensure we're below MAX_CALLS_PER_MINUTE
-    if RATE_LIMIT_DELAY < min_delay:
-        RATE_LIMIT_DELAY = min_delay
+    debug_print(f"\nTIME LIMIT CONFIGURATION:", 1)
+    debug_print(f"Maximum total time: {MAX_TOTAL_TIME_MINUTES} minutes", 1)
+    debug_print(f"Number of keywords to process: {num_keywords}", 1)
+    debug_print(f"Initial delay between calls: {RATE_LIMIT_DELAY:.2f} seconds", 1)
+    debug_print(f"Estimated total time: {(RATE_LIMIT_DELAY * (num_keywords - 1)) / 60:.1f} minutes", 1)
 
-    debug_print(f"SPREADING API CALLS: {num_keywords} calls over at least {TOTAL_TIME_MINUTES} minutes", 2)
-    debug_print(f"INITIAL DELAY BETWEEN CALLS: {RATE_LIMIT_DELAY:.2f} seconds", 2)
-
-    # Calculate total runtime based on initial delay (only detailed at higher debug levels)
-    total_runtime = RATE_LIMIT_DELAY * (num_keywords - 1) if num_keywords > 1 else 0
-    logging.info(f"Initial estimated processing time: {total_runtime/60:.1f} minutes")
-    debug_print(f"ESTIMATED RUNTIME: {total_runtime/60:.1f} minutes", 2)
-
-    # Process each keyword
-    start_time = time.time()
-
+    # Process each keyword with time limit check
     for i, keyword in enumerate(keywords_to_process):
-        # Calculate and display progress information
+        # Check if we're approaching the time limit
         current_time = time.time()
         elapsed_time = current_time - start_time
+        remaining_time = MAX_TOTAL_TIME_SECONDS - elapsed_time
 
-        logging.info(f"Processing keyword {i+1}/{len(keywords_to_process)}: '{keyword}'")
+        if remaining_time < 0:
+            debug_print("\nWARNING: Time limit reached. Stopping processing.", 1)
+            logging.warning(f"Time limit of {MAX_TOTAL_TIME_MINUTES} minutes reached. Processed {i} of {num_keywords} keywords.")
+            break
+
+        # Calculate and display progress information
+        progress_percent = (i / len(keywords_to_process)) * 100
         debug_print(f"\nProcessing keyword {i+1}/{len(keywords_to_process)}: '{ensure_str(keyword)}'", 1)
+        debug_print(f"Progress: {progress_percent:.1f}% complete", 2)
+        debug_print(f"Time elapsed: {elapsed_time/60:.1f} minutes", 2)
+        debug_print(f"Time remaining: {remaining_time/60:.1f} minutes", 2)
 
-        if i > 0 and DEBUG_LEVEL >= 2:
-            # Calculate progress and estimated completion
-            progress_percent = (i / len(keywords_to_process)) * 100
-            total_estimated_time = elapsed_time / (i / len(keywords_to_process))
-            remaining_time = total_estimated_time - elapsed_time
-
-            debug_print(f"PROGRESS: {progress_percent:.1f}% complete", 2)
-            debug_print(f"TIME ELAPSED: {elapsed_time/60:.1f} minutes", 2)
-            debug_print(f"ESTIMATED TIME REMAINING: {remaining_time/60:.1f} minutes", 2)
-
-        # Pass progress information to the search function
+        # Process the keyword
         papers = search_papers_by_keyword(
             keyword,
             days_ago=days_lookback,
@@ -695,35 +753,28 @@ def process_academic_papers(days_lookback=3, process_all=True): #changed from Tr
 
             # Check if paper is already in our list (by paperId)
             if not any(p.get("paperId") == paper.get("paperId") for p in all_papers):
-                all_papers.append(enriched_paper)
-
-                # Count keywords
-                for kw in enriched_paper["keywords"]:
-                    keyword_counts[kw] += 1
+                # Check if paper has been in previous newsletters
+                if paper.get("paperId") not in history:
+                    all_papers.append(enriched_paper)
+                    # Count keywords
+                    for kw in enriched_paper["keywords"]:
+                        keyword_counts[kw] += 1
+                else:
+                    logging.debug(f"Skipping previously included paper: {paper.get('title', 'No title')}")
             else:
-                debug_print(f"Skipping duplicate paper: {ensure_str(paper.get('title', 'No title'))}", 2)
+                logging.debug(f"Skipping duplicate paper: {paper.get('title', 'No title')}")
 
-    # Summary output (minimal)
+    # Update newsletter history with new articles
+    new_article_ids = {paper.get("paperId") for paper in all_papers if paper.get("paperId")}
+    if new_article_ids:
+        update_newsletter_history(new_article_ids)
+
+    # Final timing summary
+    total_time = time.time() - start_time
     debug_print("\n" + "*"*40, 1)
     debug_print(f"PROCESSING COMPLETE: Found {len(all_papers)} unique academic papers", 1)
-
-    if len(all_papers) == 0:
-        debug_print("NO PAPERS FOUND PUBLISHED IN THE LAST 24 HOURS", 1)
-
-    # Display timing statistics only at higher debug levels
-    if api_call_times and DEBUG_LEVEL >= 2:
-        avg_call_time = sum(api_call_times) / len(api_call_times)
-        min_call_time = min(api_call_times)
-        max_call_time = max(api_call_times)
-        total_api_time = sum(api_call_times)
-
-        debug_print("\nAPI CALL STATISTICS:", 2)
-        debug_print(f"  Total API calls made: {len(api_call_times)}", 2)
-        debug_print(f"  Average call duration: {avg_call_time:.2f} seconds", 2)
-        debug_print(f"  Fastest call: {min_call_time:.2f} seconds", 2)
-        debug_print(f"  Slowest call: {max_call_time:.2f} seconds", 2)
-        debug_print(f"  Final delay between calls: {RATE_LIMIT_DELAY:.2f} seconds", 2)
-
+    debug_print(f"Total processing time: {total_time/60:.1f} minutes", 1)
+    debug_print(f"Average time per keyword: {total_time/len(keywords_to_process):.1f} seconds", 1)
     debug_print("*"*40, 1)
 
     logging.info(f"Processed {len(all_papers)} academic papers")

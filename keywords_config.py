@@ -29,17 +29,18 @@ def get_keywords():
     "Lieferkettensorgfaltspflichtengesetz", "B Corp", "Social Business", "Social Enterprise",
     "Basel IV", "Basel III", "Basel regulation", "MaRisk", "Stress Test", "IPCC", " COP ", "EOIPA",
     "EU Regulation on Deforestation-free Products", "net zero", "net-zero", "decarbonize", "decarbonise",
-    "carbon credit", "biodiversity", "TNFD", "renaturation", "rewilding", "Nature based", " NbS ",
+    "carbon credit", "biodiversity", "TNFD", "renaturation", "rewilding", "Nature based", "Nature Risk", "Biodiversity Risk" ," NbS ",
     "Nature-based", "Partnership for Carbon Accounting Financials", "Hydrogen", "Wasserstoff", "Decarbonising",
     "Decarbonizing", " NGFS ", "climate scenario", "climate policy", "stranded asset", "transition risk", "physical risk",
     "transition path", " VSME ", "(VSME)", "ESG-Score", "ESG-Rating", " CDR ", " CRCF ", "(CRCF)", "Carbon Removal", "Carbon Farming",
-    "Swiss Climate Law", "CO2 Act", "CO2-Act", "HR DD", "HR Due Diligence", "ESG Rating", "ISSB", "GRI",
-    "Implied Temperature Rise as a Measure of Alignment", "ITR-Score", "ITR-Rating", "Implied Temperature Rise"
+    "Swiss Climate Law", "CO2 Act", "CO2-Act", "HR DD", "HR Due Diligence", "ESG Rating", " ISSB ",
+    "Implied Temperature Rise as a Measure of Alignment", "ITR-Score", "ITR-Rating", "Implied Temperature Rise", "Natural Capital"
 }
 
     # Negative keywords - content containing these will be EXCLUDED
     negative_keywords = {
-    "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb", "Marisken", "trabalho", "Sustentabilidade"
+    "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb", "Marisken", "trabalho", "Sustentabilidade",
+    "Mariskal"
 }
 
     return keywords, negative_keywords

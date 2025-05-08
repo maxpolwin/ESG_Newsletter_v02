@@ -114,7 +114,7 @@ class SpotifyRateLimiter:
         self.calls_per_second = calls_per_second
         self.call_timestamps = []
         self.lock = threading.RLock()
-        self.min_interval = 1.0 / calls_per_second
+        self.min_interval = 0.5/ calls_per_second
         
     def wait_if_needed(self):
         """Wait if necessary to stay under rate limit."""

@@ -193,7 +193,12 @@ def generate_podcast_section(podcast_articles):
         link = ensure_str(article.get("link", ""))
         pub_date = ensure_str(article.get("pub_date", ""))
         duration = ensure_str(article.get("duration", ""))
-        # Add more fields as needed
+        keywords = article.get("keywords", [])  # Get matched keywords
+
+        # Build the keywords line (using the same style as other article types)
+        keywords_html = ""
+        for kw in keywords:
+            keywords_html += f"<span style='display: inline-block; background-color: #BDD7D6; padding: 2px 5px; margin: 2px; border-radius: 3px;'>{ensure_str(kw)}</span> "
 
         podcast_html += f"""
         <tr>
@@ -213,6 +218,9 @@ def generate_podcast_section(podcast_articles):
                             </div>
                             <div style="font-family: Arial, sans-serif; font-size: 12px; color: #D2691E;">
                                 {pub_date} {f'| Duration: {duration}' if duration else ''}
+                            </div>
+                            <div style="font-family: Arial, sans-serif; font-size: 12px; color: #5E9E9A; margin-top: 8px;">
+                                Keywords: {keywords_html}
                             </div>
                         </td>
                     </tr>

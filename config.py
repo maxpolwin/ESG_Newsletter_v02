@@ -120,6 +120,10 @@ os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 CSS_DIR = os.path.join(BASE_DIR, "css")
 os.makedirs(CSS_DIR, exist_ok=True)
 
+# Directory for caching API responses
+CACHE_DIR = os.path.join(BASE_DIR, "cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
+
 # Configure logging
 logging.basicConfig(
     filename=os.path.join(OUTPUT_DIR, "newsletter_system.log"),
@@ -164,8 +168,10 @@ except ImportError:
 # List of RSS feeds to fetch
 RSS_FEEDS = [
     "https://imo-epublications.org/rss/content/all/most_recent_items?fmt=rss",
+    "https://digital.soas.ac.uk/rss/all_rss.xml",
+    "https://utorontopress.com/feed/",
     "https://wcd.copernicus.org/xml/rss2_0.xml",
-    "https://www.generali.com/.rest/rss/v1/feed?name=pressReleases",
+   # "https://www.generali.com/.rest/rss/v1/feed?name=pressReleases",
     "https://www.destatis.de/SiteGlobals/Functions/RSSFeed/DE/RSSNewsfeed/Aktuell.xml",
     "https://rss.sueddeutsche.de/alles",
     "https://think.ing.com/rss",
