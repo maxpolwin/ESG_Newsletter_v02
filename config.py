@@ -168,6 +168,9 @@ except ImportError:
 # List of RSS feeds to fetch
 RSS_FEEDS = [
     "https://imo-epublications.org/rss/content/all/most_recent_items?fmt=rss",
+    "https://www.hu-berlin.de/de/pr/medien/nachrichten.rss",
+    "https://v.hu-berlin.de/rss_de.xml",
+    "https://info.orcid.org/feed/",
     "https://digital.soas.ac.uk/rss/all_rss.xml",
     "https://utorontopress.com/feed/",
     "https://wcd.copernicus.org/xml/rss2_0.xml",
