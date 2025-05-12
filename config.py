@@ -238,6 +238,12 @@ RSS_FEEDS = [
     "https://www.presseportal.de/rss/finanzen.rss2",
     "https://www.presseportal.de/rss/banken.rss2",
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/rssnewsfeed.xml",
+    "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Massnahmen.xml",
+    "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/rssnewsfeed.xml",
+    "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/rssnewsfeed.xml",
+    "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Aufsicht.xml",
+    "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Massnahmen.xml",
+    "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Angebotsausschreibung.xml",
     "https://www.europarl.europa.eu/rss/doc/press-releases/en.xml",
     "https://www.europarl.europa.eu/rss/doc/last-news-committees/en.xml",
     "http://www.bankingsupervision.europa.eu/rss/press.html",
@@ -450,7 +456,9 @@ RSS_FEEDS = [
     "https://www.deutschlandfunk.de/kulturportal-100.rss",
     "https://www.deutschlandfunk.de/europa-112.rss",
     "https://www.deutschlandfunk.de/gesellschaft-106.rss",
-    "https://www.deutschlandfunk.de/sportportal-100.rss"
+    "https://www.deutschlandfunk.de/sportportal-100.rss",
+    "https://financefwd.com/de/feed/",
+    "https://effas.net/news-and-press/news-and-press-center/977-the-sfaf-presents-a-snapshot-of-the-situation-regarding-the-application-of-mifid-2.html#"
     # More feeds can be added here
 ]
 
@@ -464,6 +472,7 @@ TRUSTED_SENDERS = [
     "noreply@talk.economistfoundation.org",
     "noreply@talk.economistfoundation.org",
     "noreply@talk.economistfoundation.org",
+    "office@regulatoryblog.eu",
     "energysnapshot@iea.org",
     "newsletters@bruegel.org",
     "bradzarnett@substack.com",
@@ -535,7 +544,8 @@ TRUSTED_SENDERS = [
     "info@drsc.de",
     "briefings@gs.com",
     "noreply@omfif.org",
-    "digital@project-syndicate.org"
+    "digital@project-syndicate.org",
+    "newsletter@finanz-szene.de"
 
 ]
 
