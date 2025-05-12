@@ -36,6 +36,13 @@ def extract_organization_name(article):
             return ensure_str(source_info["domain"])
     return "Unknown"
 
+def is_sciencedirect_article(article):
+    """Check if the article is from ScienceDirect."""
+    source_info = article.get("source_info", {})
+    if source_info and source_info.get("domain", "").lower() in ["sciencedirect.com", "www.sciencedirect.com"]:
+        return True
+    return False
+
 def enhanced_executive_summary(articles):
     """Generate an enhanced executive summary of the articles using Mistral API with fallback to simple stats."""
     if not articles:
@@ -44,7 +51,7 @@ def enhanced_executive_summary(articles):
     # Count source types for fallback
     rss_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "rss")
     email_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "email")
-    academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic")
+    academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic" or is_sciencedirect_article(a))
     podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")  # NEW
 
     logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {academic_count} academic papers, {podcast_count} podcasts")
@@ -178,7 +185,7 @@ def extract_actual_url(link_str):
 
 def generate_podcast_section(podcast_articles):
     """
-    Generate HTML for podcast episodes.
+    Generate HTML for podcast episodes, with special handling for Deutschlandfunk podcasts.
     Args:
         podcast_articles: List of podcast article dicts
     Returns:
@@ -186,6 +193,7 @@ def generate_podcast_section(podcast_articles):
     """
     if not podcast_articles:
         return ""
+    
     podcast_html = ""
     for article in podcast_articles:
         title = ensure_str(article.get("title", "Untitled"))
@@ -193,41 +201,87 @@ def generate_podcast_section(podcast_articles):
         link = ensure_str(article.get("link", ""))
         pub_date = ensure_str(article.get("pub_date", ""))
         duration = ensure_str(article.get("duration", ""))
-        keywords = article.get("keywords", [])  # Get matched keywords
-
-        # Build the keywords line (using the same style as other article types)
+        keywords = article.get("keywords", [])
+        source_info = article.get("source_info", {})
+        
+        # Extract Deutschlandfunk specific metadata
+        is_deutschlandfunk = False
+        if source_info and source_info.get("domain", "").lower() in ["deutschlandfunk.de", "deutschlandfunkkultur.de", "deutschlandfunknova.de"]:
+            is_deutschlandfunk = True
+            # Extract additional metadata if available
+            series = article.get("series", "")
+            episode_number = article.get("episode_number", "")
+            author = article.get("author", "")
+            image_url = article.get("image_url", "")
+        
+        # Build the keywords line
         keywords_html = ""
         for kw in keywords:
             keywords_html += f"<span style='display: inline-block; background-color: #BDD7D6; padding: 2px 5px; margin: 2px; border-radius: 3px;'>{ensure_str(kw)}</span> "
 
-        podcast_html += f"""
-        <tr>
-            <td style="padding: 0 0 20px 0;">
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #FFF7E6; border-radius: 8px;">
-                    <tr>
-                        <td style="padding: 15px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
-                                <h3 style="margin: 0; font-family: Arial, sans-serif; font-size: 16px;">
-                                    <a href="{link}" style="color: #D2691E; text-decoration: none;">🎙️ {title}</a>
-                                </h3>
-                                <span style="display: inline-block; background-color: #FFE4B5; color: #D2691E;
-                                      padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;">Podcast</span>
-                            </div>
-                            <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
-                                {description}
-                            </div>
-                            <div style="font-family: Arial, sans-serif; font-size: 12px; color: #D2691E;">
-                                {pub_date} {f'| Duration: {duration}' if duration else ''}
-                            </div>
-                            <div style="font-family: Arial, sans-serif; font-size: 12px; color: #5E9E9A; margin-top: 8px;">
-                                Keywords: {keywords_html}
-                            </div>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-        """
+        # Special styling for Deutschlandfunk podcasts
+        if is_deutschlandfunk:
+            podcast_html += f"""
+            <tr>
+                <td style="padding: 0 0 20px 0;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #F5F5F5; border-radius: 8px; border-left: 4px solid #003366;">
+                        <tr>
+                            <td style="padding: 15px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                                    <h3 style="margin: 0; font-family: Arial, sans-serif; font-size: 16px;">
+                                        <a href="{link}" style="color: #003366; text-decoration: none;">🎙️ {title}</a>
+                                    </h3>
+                                    <span style="display: inline-block; background-color: #003366; color: #FFFFFF;
+                                          padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;">Deutschlandfunk</span>
+                                </div>
+                                {f'<div style="font-family: Arial, sans-serif; font-size: 13px; color: #666; margin: 5px 0;">{series}</div>' if series else ''}
+                                {f'<div style="font-family: Arial, sans-serif; font-size: 13px; color: #666; margin: 5px 0;">Episode {episode_number}</div>' if episode_number else ''}
+                                {f'<div style="font-family: Arial, sans-serif; font-size: 13px; color: #666; margin: 5px 0;">{author}</div>' if author else ''}
+                                <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
+                                    {description}
+                                </div>
+                                <div style="font-family: Arial, sans-serif; font-size: 12px; color: #003366;">
+                                    {pub_date} {f'| Duration: {duration}' if duration else ''}
+                                </div>
+                                <div style="font-family: Arial, sans-serif; font-size: 12px; color: #5E9E9A; margin-top: 8px;">
+                                    Keywords: {keywords_html}
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            """
+        else:
+            # Original podcast styling for non-Deutschlandfunk podcasts
+            podcast_html += f"""
+            <tr>
+                <td style="padding: 0 0 20px 0;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #FFF7E6; border-radius: 8px;">
+                        <tr>
+                            <td style="padding: 15px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                                    <h3 style="margin: 0; font-family: Arial, sans-serif; font-size: 16px;">
+                                        <a href="{link}" style="color: #D2691E; text-decoration: none;">🎙️ {title}</a>
+                                    </h3>
+                                    <span style="display: inline-block; background-color: #FFE4B5; color: #D2691E;
+                                          padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;">Podcast</span>
+                                </div>
+                                <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
+                                    {description}
+                                </div>
+                                <div style="font-family: Arial, sans-serif; font-size: 12px; color: #D2691E;">
+                                    {pub_date} {f'| Duration: {duration}' if duration else ''}
+                                </div>
+                                <div style="font-family: Arial, sans-serif; font-size: 12px; color: #5E9E9A; margin-top: 8px;">
+                                    Keywords: {keywords_html}
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            """
     return podcast_html
 
 def generate_html(articles, keyword_counts):
@@ -256,7 +310,7 @@ def generate_html(articles, keyword_counts):
     # Calculate article counts by source type - we still need this for logging
     rss_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "rss")
     email_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "email")
-    academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic")
+    academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic" or is_sciencedirect_article(a))
     podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")  
     logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {podcast_count} podcasts, {academic_count} academic papers")
 
@@ -390,8 +444,8 @@ def generate_html(articles, keyword_counts):
                     </td>
                 </tr>
                 """
-            elif source_type == "academic":
-                # Special handling for academic papers
+            elif source_type == "academic" or is_sciencedirect_article(article):
+                # Special handling for academic papers and ScienceDirect articles
                 raw_url = ensure_str(article.get("url", ""))
                 url = extract_actual_url(raw_url)
                 snippet = ensure_str(article.get("snippet", ""))
@@ -400,6 +454,10 @@ def generate_html(articles, keyword_counts):
                 venue = ensure_str(article.get("venue", ""))
                 year = ensure_str(article.get("year", ""))
                 citation_count = ensure_int(article.get("citationCount", 0))
+                doi = ensure_str(article.get("doi", ""))
+                journal = ensure_str(article.get("journal", ""))
+                volume = ensure_str(article.get("volume", ""))
+                issue = ensure_str(article.get("issue", ""))
 
                 # Build the keywords line (original v02 style)
                 keywords_html = ""
@@ -416,15 +474,25 @@ def generate_html(articles, keyword_counts):
                     </div>
                     """
 
+                # Special styling for ScienceDirect articles
+                if is_sciencedirect_article(article):
+                    background_color = "#F0F5FF"
+                    border_color = "#FF6B00"  # ScienceDirect orange
+                    source_badge = "ScienceDirect"
+                else:
+                    background_color = "#F0F5FF"
+                    border_color = "#00827C"
+                    source_badge = "Academic Paper"
+
                 article_entry = f"""
                 <tr>
                     <td style="padding: 0 0 20px 0;">
-                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #F0F5FF; border-radius: 8px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: {background_color}; border-radius: 8px; border-left: 4px solid {border_color};">
                             <tr>
                                 <td style="padding: 15px;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <div style="font-family: Arial, sans-serif; font-size: 11px; color: #666; margin-bottom: 5px;">
-                                            ACADEMIC PAPER {year} | {citation_count} citations
+                                            {source_badge} {year} | {citation_count} citations
                                         </div>
                                         <span style="display: inline-block; background-color: {COLORS["primary_light"]}; color: {COLORS["primary_dark"]};
                                               padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;">{organization}</span>
@@ -435,6 +503,9 @@ def generate_html(articles, keyword_counts):
                                     <div style="margin: 5px 0; font-family: Arial, sans-serif; font-size: 13px; font-style: italic; color: #666;">
                                         {authors}
                                     </div>
+                                    {f'<div style="margin: 5px 0; font-family: Arial, sans-serif; font-size: 13px; color: #666;">{journal}</div>' if journal else ''}
+                                    {f'<div style="margin: 5px 0; font-family: Arial, sans-serif; font-size: 13px; color: #666;">Volume {volume}, Issue {issue}</div>' if volume and issue else ''}
+                                    {f'<div style="margin: 5px 0; font-family: Arial, sans-serif; font-size: 13px; color: #666;">DOI: {doi}</div>' if doi else ''}
                                     <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
                                         {snippet}
                                         {abstract_source_html}

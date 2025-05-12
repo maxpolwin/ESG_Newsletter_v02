@@ -458,6 +458,13 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "noreply@esma.europa.eu",
+    "newsletter@forum-ng.org",
+    "info@thebureauinvestigates.com",
+    "no-reply@data.cdp.net",
+    "noreply@talk.economistfoundation.org",
+    "noreply@talk.economistfoundation.org",
+    "noreply@talk.economistfoundation.org",
+    "energysnapshot@iea.org",
     "newsletters@bruegel.org",
     "bradzarnett@substack.com",
     "info@greencentralbanking.com",
