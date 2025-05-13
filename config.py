@@ -458,7 +458,12 @@ RSS_FEEDS = [
     "https://www.deutschlandfunk.de/gesellschaft-106.rss",
     "https://www.deutschlandfunk.de/sportportal-100.rss",
     "https://financefwd.com/de/feed/",
-    "https://effas.net/news-and-press/news-and-press-center/977-the-sfaf-presents-a-snapshot-of-the-situation-regarding-the-application-of-mifid-2.html#"
+    "https://effas.net/news-and-press/news-and-press-center/977-the-sfaf-presents-a-snapshot-of-the-situation-regarding-the-application-of-mifid-2.html#",
+    "https://rpc.cfainstitute.org/RPC-Publications-Feed",
+    "https://www.unep.org/news-and-stories/rss.xml",
+    "https://www.unepfi.org/category/publications/rss",
+    "https://bdi.eu/rss",
+    "https://www.dihk-verlag.de/shop_DocDtl.aspx?id=1127"
     # More feeds can be added here
 ]
 
@@ -466,6 +471,7 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "noreply@esma.europa.eu",
+    "hello=ctvc.co@ghost.ctvc.co",
     "newsletter@forum-ng.org",
     "info@thebureauinvestigates.com",
     "no-reply@data.cdp.net",
@@ -480,6 +486,7 @@ TRUSTED_SENDERS = [
     "esgonasunday@substack.com",
     "information@kpmg.de",
     "webmestre@ngfs.net",
+    "comms@ceps.eu",
     "max.polwin@posteo.de",
     "newsletters@bruegel.org",
     "briefing@nature.com",
@@ -545,8 +552,12 @@ TRUSTED_SENDERS = [
     "briefings@gs.com",
     "noreply@omfif.org",
     "digital@project-syndicate.org",
-    "newsletter@finanz-szene.de"
+    "newsletter@finanz-szene.de",
+    "noreply@mail.bundesbank.de",
+    "carbonrisk@substack.com",
+    "comms@ceps.eu"
 
+    #add more as you subscribe to more newsletters
 ]
 
 
