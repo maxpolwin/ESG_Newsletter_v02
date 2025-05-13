@@ -538,14 +538,27 @@ RSS_FEEDS = [
     "https://feeds.content.dowjones.io/public/rss/RSSWorldNews",
     "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain",
     "https://feeds.content.dowjones.io/public/rss/socialeconomyfeed",
-    "https://feeds.content.dowjones.io/public/rss/socialpoliticsfeed"
-
-
-
-
-
-
-
+    "https://feeds.content.dowjones.io/public/rss/socialpoliticsfeed",
+    "https://www.presseportal.de/rss/presseschau.rss2?langid=1",
+    "https://www.presseportal.de/rss/wirtschaft.rss2?langid=1",
+    "https://www.presseportal.de/rss/umwelt.rss2?langid=1",
+    "https://www.presseportal.de/rss/finanzen.rss2?langid=1",
+    "https://www.presseportal.de/rss/bau-immobilien.rss2?langid=1",
+    "https://www.presseportal.ch/de/rss/presseportal.rss2?langid=1",
+    "https://bsky.app/profile/did:plc:lj6hjlpiksxjbmy2teo3ynoz/rss",
+    "https://www.spiegel.de/schlagzeilen/tops/index.rss",
+    "https://www.spiegel.de/schlagzeilen/index.rss",
+    "https://bsky.app/profile/did:plc:n3k7hkydcbm64tcvfcso3yt6/rss",
+    "https://bsky.app/profile/bioversityciat.bsky.social/rss",
+    "https://www.bankofengland.co.uk/rss/bank-overground",
+    "https://www.bankofengland.co.uk/rss/events",
+    "https://www.bankofengland.co.uk/rss/knowledgebank",
+    "https://www.bankofengland.co.uk/rss/news",
+    "https://www.bankofengland.co.uk/rss/publications",
+    "https://www.bankofengland.co.uk/rss/speeches",
+    "https://www.bde.es/wbe/en/inicio/rss/rss-noticias/",
+    "https://www.bde.es/wbe/en/inicio/rss/rss-estudios-publicaciones/",
+    "https://www.bde.es/wbe/en/inicio/rss/rss-normativa/",
 
 
 
@@ -555,8 +568,24 @@ RSS_FEEDS = [
 
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
+    "contact@realclimate.org",
+    "webmestre@banque-france.fr",
+    "suomenpankki@info.eu",
     "noreply@esma.europa.eu",
+    "english@boersen-zeitung.de",
+    "newsletter@boersen-zeitung.de",
+    "noreply@mail.bundesbank.de",
+    "gazette@u.harvard.edu",
+    "imo@onclusivenews.com",
+    "noreply@esma.europa.eu",
+    "maud.gauchon@edhec.edu",
+    "newsletter@zia-deutschland.com",
     "talkingclimatenewsletter@substack.com",
+    "information@kpmg.de",
+    "information@kpmg.de",
+    "webmestre@ngfs.net",
+    "emailteam@emails.hbr.org",
+    "versand@institut-fuer-menschenrechte.de",
     "accumulationzone@substack.com",
     "hello=ctvc.co@ghost.ctvc.co",
     "newsletter@forum-ng.org",
@@ -567,6 +596,7 @@ TRUSTED_SENDERS = [
     "noreply@talk.economistfoundation.org",
     "office@regulatoryblog.eu",
     "energysnapshot@iea.org",
+    "noreply@mail.bundesbank.de",
     "newsletters@bruegel.org",
     "bradzarnett@substack.com",
     "info@greencentralbanking.com",
@@ -645,7 +675,27 @@ TRUSTED_SENDERS = [
     "comms@ceps.eu",
     "digital@euractiv.com",
     "emailteam@emails.hbr.org",
-    "noreply@omfif.org"
+    "noreply@omfif.org",
+    "leserservice@boersen-zeitung.de",
+    "billmckibben@substack.com",
+    "alexsteffen@substack.com",
+    "talkingclimatenewsletter@substack.com",
+    "accumulationzone@substack.com",
+    "digital@euractiv.com",
+    "emailteam@emails.hbr.org",
+    "noreply@omfif.org",
+    "newsletter@finanz-szene.de",
+    "Quanta@SimonsFoundation.org",
+    "news@news.dandc.eu",
+    "nnxxwnwlcxrjhwubtpmvkuiryd@simplelogin.co",
+    "briefing@nature.com",
+    "pmjukysgdjyqbkbglwkktx@simplelogin.co"
+
+
+
+
+
+
 
    
 

@@ -205,7 +205,7 @@ def search_papers_by_keyword(keyword, days_ago=3, fields=None, request_number=No
     global RATE_LIMIT_DELAY, api_call_times
 
     # Add retry constants
-    MAX_RETRIES = 3
+    MAX_RETRIES = 4
     BASE_RETRY_DELAY = 2  # Base delay for exponential backoff
 
     # Ensure days_ago is an integer
