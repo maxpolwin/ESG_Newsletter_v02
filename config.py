@@ -559,6 +559,8 @@ RSS_FEEDS = [
     "https://www.bde.es/wbe/en/inicio/rss/rss-noticias/",
     "https://www.bde.es/wbe/en/inicio/rss/rss-estudios-publicaciones/",
     "https://www.bde.es/wbe/en/inicio/rss/rss-normativa/",
+    "https://bsky.app/profile/did:plc:v6otrz2gy7lej5cjbaqwbvgt/rss",
+    "https://www.risk.net/rss-feeds"
 
 
 
@@ -569,6 +571,9 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "contact@realclimate.org",
+    "in.context.newsletter@jpmcib.jpmorgan.com",
+    "newsletter@news.gsh.cib.natixis.com",
+    "mediacentre@ebf.eu",
     "webmestre@banque-france.fr",
     "suomenpankki@info.eu",
     "noreply@esma.europa.eu",
@@ -689,7 +694,9 @@ TRUSTED_SENDERS = [
     "news@news.dandc.eu",
     "nnxxwnwlcxrjhwubtpmvkuiryd@simplelogin.co",
     "briefing@nature.com",
-    "pmjukysgdjyqbkbglwkktx@simplelogin.co"
+    "pmjukysgdjyqbkbglwkktx@simplelogin.co",
+    "editors@heatmap.news",
+    "whitestaginvesting@substack.com"
 
 
 
