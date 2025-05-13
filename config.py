@@ -427,8 +427,8 @@ RSS_FEEDS = [
     "https://journals.ametsoc.org/journalissuetocrss/journals/mwre/mwre-overview.xml",
     "https://journals.ametsoc.org/journalissuetocrss/journals/wefo/wefo-overview.xml",
     "https://journals.ametsoc.org/journalissuetocrss/journals/wcas/wcas-overview.xml",
-    "https://www.dfg.de/service/rss/de/323556/feed.rss",
-    "https://www.dfg.de/service/rss/en/324778/feed.rss",
+   #"https://www.dfg.de/service/rss/de/323556/feed.rss",
+   #"https://www.dfg.de/service/rss/en/324778/feed.rss",
     "https://www.esma.europa.eu/rss.xml",
     "https://ec.europa.eu/newsroom/eiopa/feed?item_type_id=1736&lang=en&orderby=item_date",
     "https://ec.europa.eu/newsroom/eiopa/feed?item_type_id=1737&lang=en&orderby=item_date",
@@ -463,7 +463,92 @@ RSS_FEEDS = [
     "https://www.unep.org/news-and-stories/rss.xml",
     "https://www.unepfi.org/category/publications/rss",
     "https://bdi.eu/rss",
-    "https://www.dihk-verlag.de/shop_DocDtl.aspx?id=1127"
+    "https://www.dihk-verlag.de/shop_DocDtl.aspx?id=1127",
+    "http://www.zew.de/en/rss/rss.php",
+    "http://feeds.harvardbusiness.org/harvardbusiness/",
+    "https://news.harvard.edu/gazette/feed/",
+    "https://executiveeducation.wharton.upenn.edu/thought-leadership/wharton-at-work/feed/",
+    "https://financefwd.com/de/feed/",
+    "https://www.ft.com/news-feed?format=rss",
+    "https://feeds.elpais.com/mrss-s/pages/ep/site/cincodias.elpais.com/section/ultimas-noticias/portada",
+    "https://www.straitstimes.com/news/business/rss.xml",
+    "https://www.straitstimes.com/news/asia/rss.xml",
+    "https://www.straitstimes.com/news/world/rss.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/EnergyEnvironment.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/SmallBusiness.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Dealbook.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/YourMoney.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Climate.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/RealEstate.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/MostViewed.xml",
+    "https://www.nytimes.com/svc/collections/v1/publish/www.nytimes.com/column/ezra-klein/rss.xml",
+    "https://restofworld.org/feed/latest",
+    "https://news.mit.edu/rss",
+    "https://bsky.app/profile/did:plc:guefujpfgzbe6y3ix2bf62hr/rss",
+    "https://bsky.app/profile/did:plc:jap4fkprwjzgvh43jlp62pmh/rss",
+    "https://bsky.app/profile/did:plc:vdghr6occvjt6r4j5kgvgnxi/rss",
+    "https://bsky.app/profile/did:plc:jjbb7kvn2rjcupiycuxoysia/rss",
+    "https://bsky.app/profile/did:plc:icmgbi2h7mwmbojmifv7a7hp/rss",
+    "https://bsky.app/profile/did:plc:s6434g77dgj5mr2cym345yr4/rss",
+    "https://bsky.app/profile/did:plc:cfaooxkgfnxxgyynkjw25ufn/rss",
+    "https://bsky.app/profile/did:plc:gwkoj3p542yn36gfesdyjqel/rss",
+    "https://bsky.app/profile/did:plc:splem4tbrpi5hfm3w353tzqe/rss",
+    "https://bsky.app/profile/did:plc:rqgety5gwmkzsrdpf6vjqhut/rss",
+    "https://bsky.app/profile/did:plc:sbdge3lftdiekg6hycd4ibm4/rss",
+    "https://bsky.app/profile/did:plc:2d6kuvaoa7qi6bq5cwq4isee/rss",
+    "https://bsky.app/profile/did:plc:f63dvjj7ghivrx35h2iunj2y/rss",
+    "https://bsky.app/profile/did:plc:2dwxs24526yfvmydneeu63ea/rss",
+    "https://www.riksbank.se/en-gb/rss/press-releases/",
+    "https://www.riksbank.se/en-gb/rss/speeches/",
+    "https://www.norges-bank.no/en/rss-feeds/Articles-and-chronicles---Norges-Bank/",
+    "https://www.norges-bank.no/en/rss-feeds/Occasional-Papers---Norges-Bank/",
+    "https://www.nationalbanken.dk/api/rssfeed?topic=Analysis&lang=en",
+    "https://www.nationalbanken.dk/api/rssfeed?topic=Report&lang=en",
+    "https://www.nationalbanken.dk/api/rssfeed?topic=Working+Paper&lang=en",
+    "https://www.nationalbanken.dk/api/rssfeed?topic=News&lang=en",
+    "https://www.nationalbanken.dk/api/rssfeed?topic=Other+publications&lang=en",
+    "https://bsky.app/profile/ec.europa.eu/rss",
+    "https://bsky.app/profile/did:plc:6igyllqug5tvklzsh4mookla/rss",
+    "https://bsky.app/profile/did:plc:bak7f4b3jsiqlpyo6o4ejaji/rss",
+    "https://bsky.app/profile/did:plc:syrr7wxueqwc73abmd2gj7wq/rss",
+    "https://bsky.app/profile/intbanker.bsky.social/rss",
+    "https://bsky.app/profile/jakobthomae.bsky.social/rss",
+    "https://bsky.app/profile/did:plc:zsn5w7bu7ywg3wfdvqczehzs/rss",
+    "https://bsky.app/profile/did:plc:yc7qtx2guh22ieh3fmwe3yhj/rss",
+    "https://bsky.app/profile/did:plc:wcnslwwko35gtmxftz2mflyx/rss",
+    "https://bsky.app/profile/did:plc:h4lkczne5yqiwvd7mmqmpovu/rss",
+    "https://www.businessdailyafrica.com/service/rss/bd/1939132/feed.rss",
+    "https://www.srf.ch/news/bnf/rss/1646",
+    "https://www.thehindu.com/business/feeder/default.rss",
+    "https://www.thehindu.com/feeder/default.rss",
+    "co.jp/feed/",
+    "https://www.latimes.com/business/rss2.0.xml",
+    "https://www.latimes.com/environment/rss2.0.xml",
+    "https://www.latimes.com/world-nation/rss2.0.xml",
+    "https://bsky.app/profile/did:plc:mee6vajyonx2kicob5zvhb4y/rss",
+    "https://bsky.app/profile/did:plc:ov56vcbfhxxi6djpgiabwgkf/rss",
+    "https://www.washingtonpost.com/arcio/rss/category/opinions/",
+    "https://feeds.washingtonpost.com/rss/world",
+    "http://feeds.washingtonpost.com/rss/business",
+    "https://feeds.content.dowjones.io/public/rss/RSSWorldNews",
+    "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain",
+    "https://feeds.content.dowjones.io/public/rss/socialeconomyfeed",
+    "https://feeds.content.dowjones.io/public/rss/socialpoliticsfeed"
+
+
+
+
+
+
+
+
+
+
     # More feeds can be added here
 ]
 
@@ -471,6 +556,8 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "noreply@esma.europa.eu",
+    "talkingclimatenewsletter@substack.com",
+    "accumulationzone@substack.com",
     "hello=ctvc.co@ghost.ctvc.co",
     "newsletter@forum-ng.org",
     "info@thebureauinvestigates.com",
@@ -555,7 +642,18 @@ TRUSTED_SENDERS = [
     "newsletter@finanz-szene.de",
     "noreply@mail.bundesbank.de",
     "carbonrisk@substack.com",
-    "comms@ceps.eu"
+    "comms@ceps.eu",
+    "digital@euractiv.com",
+    "emailteam@emails.hbr.org",
+    "noreply@omfif.org"
+
+   
+
+
+
+
+
+
 
     #add more as you subscribe to more newsletters
 ]
