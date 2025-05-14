@@ -306,11 +306,18 @@ def filter_newsletters(newsletters):
             # Look for webview/browser view links with specific patterns
             webview_patterns = [
                 "view in browser", "view online", "web version", "view as webpage",
-                "read online", "open in browser", "read in browser"
+                "read online", "open in browser", "read in browser", "View this email in your browser",
+                "View this email in your browser", "Im Browser anzeigen", "View email in browser",
+                "View in browser", "View it in your browser.", "Having trouble viewing this email? Click here to open it in a web browser.",
+                "View this email in your browser", "Diese E-Mail im Browser darstellen.",
+                "Wird diese E-Mail nicht richtig angezeigt? Im Browser öffnen", "Browser View"
+                "View this email in your browser", "Im Browser öffnen und Ergänzungen lesen.",
+                "View this email in your browser", "Click here to view in your browser", "heatmapdaily_logo"
             ]
             
             # Extract all links for potential article references
             all_links = []
+            substack_app_link = None
             for link in soup.find_all('a', href=True):
                 link_text = link.get_text().lower().strip()
                 href = link['href']
@@ -319,11 +326,17 @@ def filter_newsletters(newsletters):
                 if any(pattern in link_text for pattern in webview_patterns):
                     webview_link = href
                     continue
+                # Check for Substack app-link as fallback
+                if href.startswith("@https://substack.com/app-link/post?publication_id="):
+                    substack_app_link = href
                 
                 # Skip unwanted links
                 skip_patterns = ["unsubscribe", "get more in the substack app", "manage email preferences"]
                 if not any(pattern in link_text.lower() for pattern in skip_patterns):
                     all_links.append((link_text, href))
+            # If no webview link found, use the Substack app-link if available
+            if not webview_link and substack_app_link:
+                webview_link = substack_app_link
             
             article_links = all_links
 
