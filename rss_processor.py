@@ -1676,7 +1676,7 @@ def process_attachments(entry):
 
     return attachments if attachments else None
 
-def fetch_rss_entries():
+def fetch_rss_entries(feeds_to_process=None):
     """Fetch and parse RSS feeds, filtering for last 24 hours."""
     logging.info("Fetching RSS feeds...")
     print("Fetching RSS feeds...")
@@ -1684,12 +1684,15 @@ def fetch_rss_entries():
     now = time.time()
     unique_article_ids = set()
 
+    # Use provided feeds or all feeds
+    feeds_to_process = feeds_to_process or RSS_FEEDS
+
     # Register custom namespaces at the start
     register_custom_namespaces()
 
     # Group feeds by domain to avoid hammering the same server
     domain_grouped_feeds = {}
-    for feed_url in RSS_FEEDS:
+    for feed_url in feeds_to_process:
         domain = re.sub(r'^https?://', '', feed_url).split('/')[0]
         if domain not in domain_grouped_feeds:
             domain_grouped_feeds[domain] = []
@@ -2036,13 +2039,32 @@ def process_entry(entry):
         logging.error(f"Error processing entry: {e}", exc_info=True)
         return None
 
-def process_rss_feeds():
-    """Main function to process RSS feeds."""
+def process_rss_feeds(process_all=False, feed_limit=3):
+    """
+    Main function to process RSS feeds.
+    
+    Args:
+        process_all (bool): If True, process all feeds. If False, process only a subset
+                          of feeds to avoid excessive API calls.
+        feed_limit (int): Maximum number of feeds to process when process_all is False.
+                         Default is 3 feeds.
+    """
     try:
         # Register namespaces at the start
         register_custom_namespaces()
         
-        entries = fetch_rss_entries()
+        # Determine which feeds to process
+        if process_all:
+            feeds_to_process = RSS_FEEDS
+            logging.info(f"Processing all {len(feeds_to_process)} feeds")
+            print(f"Processing all {len(feeds_to_process)} feeds")
+        else:
+            # Limit to specified number of feeds to avoid excessive API calls
+            feeds_to_process = RSS_FEEDS[:feed_limit] if len(RSS_FEEDS) > feed_limit else RSS_FEEDS
+            logging.info(f"Processing {len(feeds_to_process)} feeds (limited to {feed_limit})")
+            print(f"Processing {len(feeds_to_process)} feeds (limited to {feed_limit})")
+        
+        entries = fetch_rss_entries(feeds_to_process)
         if not entries:
             logging.warning("No articles found within the last 24 hours.")
             print("No articles found within the last 24 hours.")
@@ -2087,8 +2109,39 @@ if __name__ == "__main__":
         ]
     )
 
+    # Default to processing just a subset of feeds when running as a standalone script
+    process_all_feeds = False
+    feed_limit = 3  # Default limit of 3 feeds
+    days_to_look_back = 1  # Default to 1 day (24 hours)
+
+    # Check for command line arguments
+    if len(sys.argv) > 1:
+        if sys.argv[1].lower() == "all":
+            process_all_feeds = True
+            print("Command line argument 'all' detected - will process ALL feeds")
+        elif sys.argv[1].lower() == "debug":
+            logging.getLogger().setLevel(logging.DEBUG)
+            print("Debug level set - showing more detailed output")
+        elif sys.argv[1].lower() == "verbose":
+            logging.getLogger().setLevel(logging.DEBUG)
+            print("Verbose level set - showing detailed output")
+        else:
+            try:
+                # First argument can be number of feeds to process
+                feed_limit = int(sys.argv[1])
+                print(f"Will process up to {feed_limit} feeds")
+                
+                # Second argument can be number of days to look back
+                if len(sys.argv) > 2:
+                    days_to_look_back = int(sys.argv[2])
+                    print(f"Will look back {days_to_look_back} days for articles")
+            except ValueError:
+                print(f"Unrecognized argument: {sys.argv[1]}")
+                print("Usage: python rss_processor.py [all|debug|verbose|NUMBER_OF_FEEDS [NUMBER_OF_DAYS]]")
+                sys.exit(1)
+
     # Process feeds
-    articles, keywords = process_rss_feeds()
+    articles, keywords = process_rss_feeds(process_all=process_all_feeds, feed_limit=feed_limit)
 
     # Print results
     print(f"Total articles found: {len(articles)}")

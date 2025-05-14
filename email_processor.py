@@ -303,16 +303,28 @@ def filter_newsletters(newsletters):
         if html_content:
             soup = BeautifulSoup(html_content, 'html.parser')
 
-            # Look for webview/browser view links
-            webview_patterns = ["view in browser", "view online", "web version", "view as webpage"]
+            # Look for webview/browser view links with specific patterns
+            webview_patterns = [
+                "view in browser", "view online", "web version", "view as webpage",
+                "read online", "open in browser", "read in browser"
+            ]
+            
+            # Extract all links for potential article references
+            all_links = []
             for link in soup.find_all('a', href=True):
                 link_text = link.get_text().lower().strip()
+                href = link['href']
+                
+                # Check for webview link
                 if any(pattern in link_text for pattern in webview_patterns):
-                    webview_link = link['href']
-                    break
-
-            # Extract all links for potential article references
-            all_links = [(link.get_text().strip(), link['href']) for link in soup.find_all('a', href=True)]
+                    webview_link = href
+                    continue
+                
+                # Skip unwanted links
+                skip_patterns = ["unsubscribe", "get more in the substack app", "manage email preferences"]
+                if not any(pattern in link_text.lower() for pattern in skip_patterns):
+                    all_links.append((link_text, href))
+            
             article_links = all_links
 
         # Combine text for searching keywords (include subject for better matching)
@@ -351,54 +363,29 @@ def filter_newsletters(newsletters):
                 if kw_normalized in full_text_normalized:
                     excluded_keywords.append(kw)
 
+        # Store the filtered content regardless of keyword matches
+        filtered_content.append({
+            "title": subject,
+            "sender": sender,
+            "snippet": text_content[:800] + "..." if len(text_content) > 800 else text_content,  # Use full text as snippet
+            "keywords": matched_keywords if matched_keywords and not excluded_keywords else [],
+            "email_id": email_id,
+            "source_type": "email",  # Mark this as coming from email
+            "source_info": source_info,
+            "webview_link": webview_link,  # Store webview link
+            "relevant_links": article_links,  # Store all article links
+            "attachment_filename": None,  # Will be set if needed
+            "image_urls": image_urls,  # Store any extracted image URLs
+            "full_text": text_content  # Add the full text content for executive summary generation
+        })
+
+        # Only process attachments and update keyword counts if we have matches
         if matched_keywords and not excluded_keywords:
             # Count occurrences
             for kw in matched_keywords:
                 keyword_counts[kw] += 1
 
-            # Extract snippets containing keywords
-            snippets = []
-
-            # For each matched keyword, find a relevant snippet
-            for keyword in matched_keywords:
-                keyword_normalized = normalize_text(keyword)
-
-                # Find keyword position in text
-                keyword_pos = full_text_normalized.find(keyword_normalized)
-
-                if keyword_pos != -1:
-                    # Extract a snippet around the keyword (approx 200 chars)
-                    start_pos = max(0, keyword_pos - 100)
-                    end_pos = min(len(full_text), keyword_pos + len(keyword) + 100)
-
-                    # Try to clean up the snippet to start and end with full words
-                    while start_pos > 0 and full_text[start_pos] != ' ':
-                        start_pos -= 1
-
-                    while end_pos < len(full_text) - 1 and full_text[end_pos] != ' ':
-                        end_pos += 1
-
-                    snippet = full_text[start_pos:end_pos]
-                    snippets.append(snippet)
-
-            # Combine snippets and de-duplicate
-            combined_snippets = list(set(snippets))
-            snippet_text = " [...] ".join(combined_snippets)
-
-            # Limit the length of the combined snippet
-            if len(snippet_text) > 800:
-                snippet_text = snippet_text[:797] + "..."
-
-            # Find article links that might be related to the matched keywords
-            relevant_links = []
-            if article_links:
-                for link_text, link_url in article_links:
-                    # Check if link text contains any of the matched keywords
-                    if any(normalize_text(kw) in normalize_text(link_text) for kw in matched_keywords):
-                        relevant_links.append((link_text, link_url))
-
             # Save the original email as an EML file using the newsletter title
-            attachment_filename = None
             if raw_email:
                 # Create a safe filename based on the newsletter's title (subject)
                 safe_filename = sanitize_filename(subject) + ".eml"
@@ -420,28 +407,11 @@ def filter_newsletters(newsletters):
                     logging.info(f"Saved original email as EML attachment: {attachment_path}")
                     print(f"Saved original email as EML attachment: {attachment_path}")
                     attachments.append(attachment_path)
-                    attachment_filename = safe_filename
+                    # Update the attachment filename in the filtered content
+                    filtered_content[-1]["attachment_filename"] = safe_filename
                 except Exception as e:
                     logging.error(f"Error saving email as EML attachment: {e}")
                     print(f"Error saving email as EML attachment: {e}")
-                    attachment_filename = None
-
-            # Store the filtered content (no highlighting per request)
-            # Now include the full_text field for use in executive summary generation
-            filtered_content.append({
-                "title": subject,
-                "sender": sender,
-                "snippet": snippet_text,
-                "keywords": matched_keywords,
-                "email_id": email_id,
-                "source_type": "email",  # Mark this as coming from email
-                "source_info": source_info,
-                "webview_link": webview_link,  # Store webview link
-                "relevant_links": relevant_links,  # Store relevant article links
-                "attachment_filename": attachment_filename,  # Store attachment filename if created
-                "image_urls": image_urls,  # Store any extracted image URLs
-                "full_text": text_content  # Add the full text content for executive summary generation
-            })
         elif excluded_keywords:
             logging.info(f"Excluded newsletter due to negative keyword match: {subject}")
 

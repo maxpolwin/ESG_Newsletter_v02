@@ -40,7 +40,8 @@ def get_keywords():
     # Negative keywords - content containing these will be EXCLUDED
     negative_keywords = {
     "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb", "Marisken", "trabalho", "Sustentabilidade",
-    "Mariskal", "Conspiracy", "Paluten", "CRAFT ATTACK", "Sustainy ", "Substack app Claim my free post Or upgrade your subscription. Upgrade to paid Like Comment Restack © 2025 ESG on a Sunday 548 Market Street PMB 72296, San Francisco, CA 94104 Unsubscribe"
+    "Mariskal", "Conspiracy", "Paluten", "CRAFT ATTACK", "Sustainy ",
+    "TTPP", "blyaaaaaaaaaaaaaaaaat"
     
 }
 

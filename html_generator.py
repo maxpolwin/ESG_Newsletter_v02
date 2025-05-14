@@ -544,7 +544,7 @@ def generate_html(articles, keyword_counts):
 
                 # Create relevant article links section if available (original v02 style)
                 related_links_html = ""
-                if relevant_links:
+                if relevant_links and len(relevant_links) > 0:  # Only show if we have actual links
                     links_list = ""
                     for i, link_item in enumerate(relevant_links[:3]):  # Limit to first 3 links
                         # Handle both string and tuple/list formats for backwards compatibility
@@ -598,8 +598,8 @@ def generate_html(articles, keyword_counts):
                                     </div>
                                     <h3 style="margin: 0; font-family: Arial, sans-serif; font-size: 16px; color: #444;">
                                         {title}
+                                        {webview_html}
                                     </h3>
-                                    {webview_html}
                                     <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
                                         {snippet}
                                     </div>

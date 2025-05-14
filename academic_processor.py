@@ -653,7 +653,7 @@ def filter_duplicate_articles(papers, history):
         
     return filtered_papers
 
-def process_academic_papers(days_lookback=3, process_all=True): # process_all=False
+def process_academic_papers(days_lookback=3, process_all=False): # process_all=False
     """
     Process academic papers for the newsletter.
     Now includes duplicate checking against newsletter history.
@@ -696,7 +696,7 @@ def process_academic_papers(days_lookback=3, process_all=True): # process_all=Fa
         debug_print(f"\nProcessing all {len(keywords_to_process)} keywords", 1)
     else:
         # Limit to 10 keywords to avoid excessive API calls
-        keywords_to_process = keywords_list[:2] if len(keywords_list) > 10 else keywords_list
+        keywords_to_process = keywords_list[:1] if len(keywords_list) > 10 else keywords_list
         logging.info(f"Processing {len(keywords_to_process)} keywords (limited to 10)")
         debug_print(f"\nProcessing {len(keywords_to_process)} keywords (limited to 10)", 1)
 

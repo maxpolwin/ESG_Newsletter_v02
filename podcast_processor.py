@@ -546,8 +546,24 @@ def process_podcasts(
     negative_keywords: List[str] = None,
     languages: List[str] = None,
     hours_ago: int = 24,
-    use_parallel: bool = True
+    use_parallel: bool = True,
+    process_all: bool = False,
+    keyword_limit: int = 3
 ) -> Tuple[List[Dict], Counter]:
+    """
+    Process podcasts from Spotify API.
+    
+    Args:
+        client_id (str, optional): Spotify API client ID
+        client_secret (str, optional): Spotify API client secret
+        keywords (List[str], optional): List of keywords to search for
+        negative_keywords (List[str], optional): List of negative keywords to exclude
+        languages (List[str], optional): List of languages to search in
+        hours_ago (int, optional): Number of hours to look back. Defaults to 24
+        use_parallel (bool, optional): Whether to use parallel processing. Defaults to True
+        process_all (bool, optional): If True, process all keywords. If False, limit to keyword_limit
+        keyword_limit (int, optional): Maximum number of keywords to process when process_all is False. Defaults to 3
+    """
     print("[DEBUG] Entered process_podcasts")
     # Log configuration
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -575,6 +591,21 @@ def process_podcasts(
         
     if languages is None:
         languages = SUPPORTED_LANGUAGES
+    
+    # Convert sets to lists if necessary
+    if isinstance(keywords, set):
+        keywords = list(keywords)
+    if isinstance(negative_keywords, set):
+        negative_keywords = list(negative_keywords)
+    if isinstance(languages, set):
+        languages = list(languages)
+    
+    # Limit keywords if not processing all
+    if not process_all:
+        original_keyword_count = len(keywords)
+        keywords = keywords[:keyword_limit]
+        print(f"Limiting keywords from {original_keyword_count} to {len(keywords)}")
+        logging.info(f"Limiting keywords from {original_keyword_count} to {len(keywords)}")
     
     # Validate languages
     languages = [lang for lang in languages if lang in SUPPORTED_LANGUAGES]
@@ -719,7 +750,7 @@ def test_basic_spotify_api():
 if __name__ == "__main__":
     # Configure logging for standalone execution
     logging.basicConfig(
-        level=logging.ERROR, #lowered from debug to error
+        level=logging.ERROR,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler("podcast_processor.log"),
@@ -731,6 +762,37 @@ if __name__ == "__main__":
     spotify_client_id = os.environ.get("SPOTIFY_CLIENT_ID")
     spotify_client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
     
+    # Default values
+    process_all = False
+    keyword_limit = 3
+    hours_ago = 24
+    
+    # Parse command line arguments
+    if len(sys.argv) > 1:
+        if sys.argv[1].lower() == "all":
+            process_all = True
+            print("Processing all keywords")
+        elif sys.argv[1].lower() == "debug":
+            logging.getLogger().setLevel(logging.DEBUG)
+            print("Debug level set - showing more detailed output")
+        elif sys.argv[1].lower() == "verbose":
+            logging.getLogger().setLevel(logging.DEBUG)
+            print("Verbose level set - showing detailed output")
+        else:
+            try:
+                # First argument can be number of keywords to process
+                keyword_limit = int(sys.argv[1])
+                print(f"Will process up to {keyword_limit} keywords")
+                
+                # Second argument can be number of days to look back
+                if len(sys.argv) > 2:
+                    hours_ago = int(sys.argv[2]) * 24  # Convert days to hours
+                    print(f"Will look back {hours_ago//24} days for podcasts")
+            except ValueError:
+                print(f"Unrecognized argument: {sys.argv[1]}")
+                print("Usage: python podcast_processor.py [all|debug|verbose|NUMBER_OF_KEYWORDS [NUMBER_OF_DAYS]]")
+                sys.exit(1)
+    
     # Add API test before main processing
     test_basic_spotify_api()
     
@@ -738,11 +800,13 @@ if __name__ == "__main__":
     podcasts, counts = process_podcasts(
         client_id=spotify_client_id,
         client_secret=spotify_client_secret,
-        keywords=KEYWORDS,  # Pass imported keywords
-        negative_keywords=NEGATIVE_KEYWORDS,  # Pass imported negative keywords
-        languages=["en", "de"],  # Specify languages explicitly
-        hours_ago=24,
-        use_parallel=True  # Use parallel processing for better performance
+        keywords=KEYWORDS,
+        negative_keywords=NEGATIVE_KEYWORDS,
+        languages=["en", "de"],
+        hours_ago=hours_ago,
+        use_parallel=True,
+        process_all=process_all,
+        keyword_limit=keyword_limit
     )
     
     # Print detailed results
