@@ -573,6 +573,13 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "contact@realclimate.org",
+    "bafin@noreply.bund.de",
+    "newsletter@gdv.de",
+    "noreply@suomenpankki.eu",
+    "info@investmentofficer.com",
+    "info@esgnewsalerts.net",
+    "news@foreignaffairs.com",
+    "support@iz.de",
     "info@esgnewsalerts.net",
     "news@foreignaffairs.com",
     "support@iz.de",
@@ -702,21 +709,6 @@ TRUSTED_SENDERS = [
     "pmjukysgdjyqbkbglwkktx@simplelogin.co",
     "editors@heatmap.news",
     "whitestaginvesting@substack.com"
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
     #add more as you subscribe to more newsletters
 ]
 
