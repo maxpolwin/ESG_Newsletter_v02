@@ -2039,7 +2039,7 @@ def process_entry(entry):
         logging.error(f"Error processing entry: {e}", exc_info=True)
         return None
 
-def process_rss_feeds(process_all=False, feed_limit=3):
+def process_rss_feeds(process_all=True, feed_limit=3): #changed from False to True
     """
     Main function to process RSS feeds.
     
@@ -2110,7 +2110,7 @@ if __name__ == "__main__":
     )
 
     # Default to processing just a subset of feeds when running as a standalone script
-    process_all_feeds = False
+    process_all_feeds = True #changed from False to True
     feed_limit = 3  # Default limit of 3 feeds
     days_to_look_back = 1  # Default to 1 day (24 hours)
 
