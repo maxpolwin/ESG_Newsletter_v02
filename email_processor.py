@@ -363,29 +363,27 @@ def filter_newsletters(newsletters):
                 if kw_normalized in full_text_normalized:
                     excluded_keywords.append(kw)
 
-        # Store the filtered content regardless of keyword matches
-        filtered_content.append({
-            "title": subject,
-            "sender": sender,
-            "snippet": text_content[:800] + "..." if len(text_content) > 800 else text_content,  # Use full text as snippet
-            "keywords": matched_keywords if matched_keywords and not excluded_keywords else [],
-            "email_id": email_id,
-            "source_type": "email",  # Mark this as coming from email
-            "source_info": source_info,
-            "webview_link": webview_link,  # Store webview link
-            "relevant_links": article_links,  # Store all article links
-            "attachment_filename": None,  # Will be set if needed
-            "image_urls": image_urls,  # Store any extracted image URLs
-            "full_text": text_content  # Add the full text content for executive summary generation
-        })
-
-        # Only process attachments and update keyword counts if we have matches
+        # Only include newsletters that match at least one positive keyword and no negative keywords
         if matched_keywords and not excluded_keywords:
-            # Count occurrences
+            filtered_content.append({
+                "title": subject,
+                "sender": sender,
+                "snippet": text_content[:800] + "..." if len(text_content) > 800 else text_content,  # Use full text as snippet
+                "keywords": matched_keywords,
+                "email_id": email_id,
+                "source_type": "email",  # Mark this as coming from email
+                "source_info": source_info,
+                "webview_link": webview_link,  # Store webview link
+                "relevant_links": article_links,  # Store all article links
+                "attachment_filename": None,  # Will be set if needed
+                "image_urls": image_urls,  # Store any extracted image URLs
+                "full_text": text_content  # Add the full text content for executive summary generation
+            })
+            # Process attachments and update keyword counts
             for kw in matched_keywords:
                 keyword_counts[kw] += 1
 
-            # Save the original email as an EML file using the newsletter title
+            # Save the original email as an EML file using the newsletter's title (subject)
             if raw_email:
                 # Create a safe filename based on the newsletter's title (subject)
                 safe_filename = sanitize_filename(subject) + ".eml"

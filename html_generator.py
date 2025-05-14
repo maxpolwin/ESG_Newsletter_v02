@@ -533,36 +533,30 @@ def generate_html(articles, keyword_counts):
                 for kw in keywords:
                     keywords_html += f"<span style='display: inline-block; background-color: #BDD7D6; padding: 2px 5px; margin: 2px; border-radius: 3px;'>{ensure_str(kw)}</span> "
 
-                # Create link to view in browser if available (original v02 style)
-                webview_html = ""
+                # Headline: link the title to the webview link if available
                 if webview_link:
-                    webview_html = f"""
-                    <div style="margin-top: 5px; font-family: Arial, sans-serif; font-size: 12px;">
-                        <a href="{webview_link}" style="color: #00827C; text-decoration: underline;">View in browser</a>
-                    </div>
-                    """
+                    title_html = f'<a href="{webview_link}" style="color: #00827C; text-decoration: underline;">{title}</a>'
+                else:
+                    title_html = title
 
-                # Create relevant article links section if available (original v02 style)
+                # Only show related links if at least one link contains a matching keyword
                 related_links_html = ""
-                if relevant_links and len(relevant_links) > 0:  # Only show if we have actual links
+                if relevant_links and keywords:
+                    # Normalize keywords for matching
+                    normalized_keywords = [ensure_str(kw).lower().strip() for kw in keywords]
                     links_list = ""
-                    for i, link_item in enumerate(relevant_links[:3]):  # Limit to first 3 links
-                        # Handle both string and tuple/list formats for backwards compatibility
+                    for i, link_item in enumerate(relevant_links):
                         if isinstance(link_item, (list, tuple)) and len(link_item) >= 2:
                             link_text, raw_link_url = link_item
                             link_url = extract_actual_url(raw_link_url)
                         else:
-                            # Default text if structure is unexpected
                             link_text = f"Related link {i+1}"
                             raw_link_url = ensure_str(link_item)
                             link_url = extract_actual_url(raw_link_url)
-
-                        links_list += f"""
-                        <li style="margin-bottom: 5px;">
-                            <a href="{ensure_str(link_url)}" style="color: #00827C; text-decoration: underline;">{ensure_str(link_text)}</a>
-                        </li>
-                        """
-
+                        # Only include the link if it contains a matching keyword
+                        link_text_normalized = ensure_str(link_text).lower()
+                        if any(kw in link_text_normalized for kw in normalized_keywords):
+                            links_list += f"\n<li style=\"margin-bottom: 5px;\">\n<a href=\"{ensure_str(link_url)}\" style=\"color: #00827C; text-decoration: underline;\">{ensure_str(link_text)}</a>\n</li>\n"
                     if links_list:
                         related_links_html = f"""
                         <div style="margin-top: 8px; font-family: Arial, sans-serif; font-size: 12px;">
@@ -578,7 +572,7 @@ def generate_html(articles, keyword_counts):
                 if attachment_filename and ensure_str(attachment_filename).endswith(".eml"):
                     attachment_html = f"""
                     <div style="margin-top: 8px; font-family: Arial, sans-serif; font-size: 12px; background-color: #f0f7f7; padding: 5px; border-left: 3px solid #00827C;">
-                        <p style="margin: 0;">📎 The original email is attached as "{attachment_filename}" - open with your email client</p>
+                        <p style="margin: 0;">📎 The original email is attached as \"{attachment_filename}\" - open with your email client</p>
                     </div>
                     """
 
@@ -597,8 +591,7 @@ def generate_html(articles, keyword_counts):
                                               padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;">{organization}</span>
                                     </div>
                                     <h3 style="margin: 0; font-family: Arial, sans-serif; font-size: 16px; color: #444;">
-                                        {title}
-                                        {webview_html}
+                                        {title_html}
                                     </h3>
                                     <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
                                         {snippet}
