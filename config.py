@@ -276,13 +276,14 @@ RSS_FEEDS = [
     "https://www.ufz.de/index.php?de=34299&vera_rss",
     "https://www.ufz.de/index.php?de=18084&vera_rss",
     "https://www.semafor.com/rss.xml",
-    "https://www.imf.org/en/rss-list/feed?category=FANDD_ENG",
-    "https://www.imf.org/en/News/RSS?TemplateID={2FA3421A-F179-46B6-B8D9-5C65CB4A6584}",
-    "https://www.imf.org/en/news/rss?Language=ENG&Country=DEU",
-    "https://www.imf.org/en/rss-list/feed?category=WHATSNEW",
-    "https://www.imf.org/en/Publications/RSS?language=eng&series=World%20Economic%20Outlook",
-    "https://www.imf.org/en/Publications/RSS?language=eng&series=IMF%20Working%20Papers",
-    "https://www.imf.org/en/Publications/RSS?language=eng&series=Regional%20Economic%20Outlook",
+ #   "https://www.imf.org/en/rss-list/feed?category=FANDD_ENG",
+ #   "https://www.imf.org/en/News/RSS?TemplateID={2FA3421A-F179-46B6-B8D9-5C65CB4A6584}",
+#    "https://www.imf.org/en/news/rss?Language=ENG&Country=DEU",
+#    "https://www.imf.org/en/rss-list/feed?category=WHATSNEW",
+#    "https://www.imf.org/en/Publications/RSS?language=eng&series=World%20Economic%20Outlook",
+#    "https://www.imf.org/en/Publications/RSS?language=eng&series=IMF%20Working%20Papers",
+#
+#     "https://www.imf.org/en/Publications/RSS?language=eng&series=Regional%20Economic%20Outlook",
     "https://www.leibniz-gemeinschaft.de/rss.xml",
     "http://feeds.harvardbusiness.org/harvardbusiness/videoideacast",
     "http://feeds.harvardbusiness.org/harvardbusiness?format=xml",
@@ -560,7 +561,8 @@ RSS_FEEDS = [
     "https://www.bde.es/wbe/en/inicio/rss/rss-estudios-publicaciones/",
     "https://www.bde.es/wbe/en/inicio/rss/rss-normativa/",
     "https://bsky.app/profile/did:plc:v6otrz2gy7lej5cjbaqwbvgt/rss",
-    "https://www.risk.net/rss-feeds"
+    "https://www.risk.net/rss-feeds",
+    "https://www.foreignaffairs.com/rss.xml"
 
 
 
@@ -571,6 +573,9 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "contact@realclimate.org",
+    "info@esgnewsalerts.net",
+    "news@foreignaffairs.com",
+    "support@iz.de",
     "in.context.newsletter@jpmcib.jpmorgan.com",
     "newsletter@news.gsh.cib.natixis.com",
     "mediacentre@ebf.eu",

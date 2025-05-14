@@ -207,6 +207,7 @@ def search_papers_by_keyword(keyword, days_ago=3, fields=None, request_number=No
     # Add retry constants
     MAX_RETRIES = 4
     BASE_RETRY_DELAY = 2  # Base delay for exponential backoff
+    REQUEST_TIMEOUT = 30  # Timeout in seconds for the request
 
     # Ensure days_ago is an integer
     days_ago = ensure_int(days_ago, 1)
@@ -288,7 +289,10 @@ def search_papers_by_keyword(keyword, days_ago=3, fields=None, request_number=No
             # Make API request - track how long it takes
             debug_print(f"Sending request to Semantic Scholar API (attempt {retry_attempt}/{MAX_RETRIES})...", 2)
             api_call_start_time = time.time()
-            response = requests.get(endpoint, params=params)
+            
+            # Add timeout to the request
+            response = requests.get(endpoint, params=params, timeout=REQUEST_TIMEOUT)
+            
             api_call_end_time = time.time()
 
             # Record the time taken for this API call
