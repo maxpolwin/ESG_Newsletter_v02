@@ -74,21 +74,21 @@ RETRY_ATTEMPTS = 5
 BASE_DELAY = 1  # Initial delay for exponential backoff
 
 # Language settings
-SUPPORTED_LANGUAGES = ["en", "de", "es"]
+SUPPORTED_LANGUAGES = ["en", "de"] #"es" removed
 MARKET_LANGUAGE_MAP = {
     "US": "en",
     "GB": "en",
     "DE": "de",
     "AT": "de",
     "CH": "de",
-    "ES": "es"
+#    "ES": "es"
 }
 
 # Define markets to search in for each language
 LANGUAGE_MARKETS = {
     "en": ["US", "GB", "CA", "AU", "NZ"],
     "de": ["DE", "AT", "CH"],
-    "es": ["ES"]
+#    "es": ["ES"]
 }
 
 # Rate limiting settings

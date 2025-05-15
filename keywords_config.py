@@ -41,7 +41,7 @@ def get_keywords():
     negative_keywords = {
     "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb", "Marisken", "trabalho", "Sustentabilidade",
     "Mariskal", "Conspiracy", "Paluten", "CRAFT ATTACK", "Sustainy ",
-    "TTPP", "blyaaaaaaaaaaaaaaaaat"
+    "TTPP", "blyaaaaaaaaaaaaaaaaat", "detox"
     
 }
 

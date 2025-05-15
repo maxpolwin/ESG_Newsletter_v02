@@ -2110,7 +2110,7 @@ if __name__ == "__main__":
     )
 
     # Default to processing just a subset of feeds when running as a standalone script
-    process_all_feeds = True #changed from False to True
+    process_all_feeds = False #changed from False to True
     feed_limit = 3  # Default limit of 3 feeds
     days_to_look_back = 1  # Default to 1 day (24 hours)
 
