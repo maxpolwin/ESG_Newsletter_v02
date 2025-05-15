@@ -27,7 +27,7 @@ def get_keywords():
     "EU GBS", "EU Climate Transition Benchmark", "EU CTB", "Paris-Aligned",
     "EU PAB", "PCAF", "SDGs", "Supply Chain Sourcing Obligations Act", "LkSG",
     "Lieferkettensorgfaltspflichtengesetz", "B Corp", "Social Business", "Social Enterprise",
-    "Basel IV", "Basel III", "Basel regulation", "MaRisk", "Stress Test", "IPCC", " COP ", "EOIPA",
+    "Basel IV", "Basel III", "Basel regulation", "MaRisk", "Stress Test", "IPCC", "EOIPA",
     "EU Regulation on Deforestation-free Products", "net zero", "net-zero", "decarbonize", "decarbonise",
     "carbon credit", "biodiversity", "TNFD", "renaturation", "rewilding", "Nature based", "Nature Risk", "Biodiversity Risk" ," NbS ",
     "Nature-based", "Partnership for Carbon Accounting Financials", "Hydrogen", "Wasserstoff", "Decarbonising",
@@ -41,7 +41,7 @@ def get_keywords():
     negative_keywords = {
     "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb", "Marisken", "trabalho", "Sustentabilidade",
     "Mariskal", "Conspiracy", "Paluten", "CRAFT ATTACK", "Sustainy ",
-    "TTPP", "blyaaaaaaaaaaaaaaaaat", "detox"
+    "TTPP", "blyaaaaaaaaaaaaaaaaat", "detox", "Basti GHG", "Detox", "Blondie", "MM36"
     
 }
 
