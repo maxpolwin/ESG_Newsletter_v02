@@ -273,6 +273,7 @@ RSS_FEEDS = [
     "https://ssir.org/site/rss_2.0",
     "https://insights.som.yale.edu/rss",
     "https://www.pik-potsdam.de/de/aktuelles/nachrichten/nachrichten/rss.xml",
+    "https://www.pik-potsdam.de/en/news/latest-news/latest-news/rss.xml",
     "https://www.ufz.de/index.php?de=34299&vera_rss",
     "https://www.ufz.de/index.php?de=18084&vera_rss",
     "https://www.semafor.com/rss.xml",
@@ -562,7 +563,8 @@ RSS_FEEDS = [
     "https://www.bde.es/wbe/en/inicio/rss/rss-normativa/",
     "https://bsky.app/profile/did:plc:v6otrz2gy7lej5cjbaqwbvgt/rss",
     "https://www.risk.net/rss-feeds",
-    "https://www.foreignaffairs.com/rss.xml"
+    "https://www.foreignaffairs.com/rss.xml",
+    "https://bsky.app/profile/did:plc:ppavi77mhpt7smqco4zeswop/rss"
 
 
 
@@ -573,6 +575,8 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "contact@realclimate.org",
+    "noreply@springernature.com",
+    "info@sciencebasedtargets.org",
     "bafin@noreply.bund.de",
     "newsletter@gdv.de",
     "noreply@suomenpankki.eu",
