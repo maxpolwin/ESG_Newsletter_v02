@@ -653,7 +653,7 @@ def filter_duplicate_articles(papers, history):
         
     return filtered_papers
 
-def process_academic_papers(days_lookback=3, process_all=True): # process_all=False
+def process_academic_papers(days_lookback=3, process_all=True): # changed from process_all=False to process_all=True
     """
     Process academic papers for the newsletter.
     Now includes duplicate checking against newsletter history.

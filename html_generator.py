@@ -638,7 +638,7 @@ def generate_html(articles, keyword_counts):
         """
 
     # Preheader text for email clients
-    preheader_text = f"Your daily digest: {len(articles)} articles found matching your keywords"
+    preheader_text = " "
 
     # Additional CSS for the executive summary section and organization tags
     additional_css = """
@@ -793,7 +793,7 @@ def generate_html(articles, keyword_counts):
         <!-- Header -->
         <header class="header" role="banner">
             <h1>Latest Relevant Articles</h1>
-            <p>Articles collected in the last 24 hours ({datetime.datetime.utcnow().strftime('%Y-%m-%d')})</p>
+            <p> </p>
         </header>
 
         <!-- Executive Summary Section -->

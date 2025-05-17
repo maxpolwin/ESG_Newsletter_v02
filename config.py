@@ -575,6 +575,7 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "contact@realclimate.org",
+    "no-reply@notifications.corporatedisclosures.org",
     "noreply@springernature.com",
     "info@sciencebasedtargets.org",
     "bafin@noreply.bund.de",
