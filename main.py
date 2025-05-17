@@ -44,8 +44,7 @@ from cleanup_files import cleanup_old_files
 from academic_processor import process_academic_papers
 from podcast_processor import process_podcasts
 
-
-
+USE_BROWSER_AUTOMATION = True
 
 def process_all():
     """Process both RSS and email, generate report, and send email."""

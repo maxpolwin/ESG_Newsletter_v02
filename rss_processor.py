@@ -938,40 +938,23 @@ def get_random_user_agent():
     return random.choice(user_agents)
 
 def get_custom_headers(feed_url):
-    """Generate appropriate headers based on the feed URL."""
-    # Get random user agent
-    user_agent = get_random_user_agent()
-
-    # Base headers that work for most sites
     headers = {
-        "User-Agent": user_agent,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "Accept-Encoding": "gzip, deflate, br",
-        "DNT": "1"
+        'User-Agent': get_random_user_agent(),
+        'Accept': 'application/rss+xml,application/xml;q=0.9,*/*;q=0.8',
     }
-
-    # Add referer for specific domains that need it
-    domain = urlparse(feed_url).netloc
-    if "euractiv.com" in domain:
+    
+    # Add specific headers for problematic feeds
+    if 'bis.org' in feed_url:
         headers.update({
-            "Referer": "https://www.euractiv.com/",
-            "Origin": "https://www.euractiv.com"
+            'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
+            'X-Requested-With': 'XMLHttpRequest'
         })
-    elif "ilo.org" in domain:
+    elif 'morganstanley.com' in feed_url:
         headers.update({
-            "Referer": "https://www.ilo.org/",
-            "Origin": "https://www.ilo.org"
+            'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
+            'X-Requested-With': 'XMLHttpRequest'
         })
-    elif "reuters.com" in domain:
+    elif 'think.ing.com' in feed_url:
         headers.update({
             "Referer": "https://www.reuters.com/",
             "Origin": "https://www.reuters.com"
@@ -1126,13 +1109,18 @@ def get_custom_headers(feed_url):
             "Referer": "https://ec.europa.eu/eurostat/",
             "Origin": "https://ec.europa.eu/eurostat"
         })
+    elif "bdi.eu" in domain:
+        headers.update({
+            "Referer": "https://www.bdi.eu/",
+            "Origin": "https://www.bdi.eu"
+        })
 
     # Some feeds require specific accept headers
     if feed_url.endswith('.xml') or '/rss/' in feed_url or '/feed/' in feed_url or 'atom' in feed_url:
         headers.update({
             "Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.7"
         })
-
+    
     return headers
 
 def validate_feed_content(content):

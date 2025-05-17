@@ -135,6 +135,11 @@ logging.basicConfig(
 TIME_THRESHOLD = 24 * 3600  # 24 hours in seconds - for RSS and email collection
 CLEANUP_THRESHOLD = 2  # Days - for email cleanup
 
+# Deduplication settings
+ENABLE_DEDUPLICATION = True  # Master switch for deduplication
+DEDUPLICATION_WINDOW_DAYS = 30  # How far back to check for duplicates
+DEDUPLICATION_METHOD = "strict"  # Options: "strict" (exact match) or "fuzzy" (similar content)
+
 # Main color scheme - centralized for easy theming
 COLORS = {
     "primary": "#00827C",
@@ -370,7 +375,7 @@ RSS_FEEDS = [
     "http://feeds.rsc.org/rss/ew",
     "http://feeds.rsc.org/rss/se",
     "https://www.unep.org/news-and-stories/rss.xml",
-    "https://www.sciencedaily.com/newsfeeds.htm",
+    "https://www.sciencedaily.com/newsfeeds.html",
     "https://www.eurotopics.net/export/de/rss.xml",
     "https://www.esf.de/SiteGlobals/Functions/RSSFeed/DE/Aktuelles/Aktuelles.xml?nn=c610df2a-40bb-48bf-8b32-c629392a0115",
     "https://www.ble.de/SiteGlobals/Functions/RSS/DE/Startseite.xml?nn=633724",
