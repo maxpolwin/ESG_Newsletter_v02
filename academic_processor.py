@@ -653,10 +653,14 @@ def filter_duplicate_articles(papers, history):
         
     return filtered_papers
 
-def process_academic_papers(days_lookback=3, process_all=False): # changed from process_all=False to process_all=True
+def process_academic_papers(days_lookback=3, process_all=True):
     """
     Process academic papers for the newsletter.
     Now includes duplicate checking against newsletter history.
+    
+    Args:
+        days_lookback (int): Number of days to look back for papers
+        process_all (bool): If True (default), process all keywords. If False, limit to 10 keywords
     """
     global RATE_LIMIT_DELAY, api_call_times
 
@@ -689,16 +693,16 @@ def process_academic_papers(days_lookback=3, process_all=False): # changed from 
             debug_print(f"  ... and {len(keywords_list) - 5} more", 2)
 
     # Determine which keywords to process
-    if process_all:
+    if not process_all:
+        # Limit to 10 keywords to avoid excessive API calls
+        keywords_to_process = keywords_list[:10] if len(keywords_list) > 10 else keywords_list
+        logging.info(f"Processing {len(keywords_to_process)} keywords (limited to 10)")
+        debug_print(f"\nProcessing {len(keywords_to_process)} keywords (limited to 10)", 1)
+    else:
         # Process all keywords
         keywords_to_process = keywords_list
         logging.info(f"Processing all {len(keywords_to_process)} keywords")
         debug_print(f"\nProcessing all {len(keywords_to_process)} keywords", 1)
-    else:
-        # Limit to 10 keywords to avoid excessive API calls
-        keywords_to_process = keywords_list[:1] if len(keywords_list) > 10 else keywords_list
-        logging.info(f"Processing {len(keywords_to_process)} keywords (limited to 10)")
-        debug_print(f"\nProcessing {len(keywords_to_process)} keywords (limited to 10)", 1)
 
     # Calculate the delay between API calls to fit within 2.5 hours
     num_keywords = len(keywords_to_process)
@@ -792,15 +796,15 @@ if __name__ == "__main__":
     debug_print("Running academic_processor.py directly - testing API functionality", 1)
 
     try:
-        # Default to processing just a subset of keywords when running as a standalone script
-        process_all_keywords = False #changed from False to True
-        days_to_look_back = 3  # Default to 1 day (24 hours)
+        # Default values - process all keywords by default
+        process_all = True
+        days_to_look_back = 3
 
         # Check for command line arguments
         if len(sys.argv) > 1:
-            if sys.argv[1].lower() == "all":
-                process_all_keywords = True
-                debug_print("Command line argument 'all' detected - will process ALL keywords", 1)
+            if sys.argv[1].lower() == "limited":
+                process_all = False
+                debug_print("Command line argument 'limited' detected - will process only 10 keywords", 1)
             elif sys.argv[1].lower() == "debug":
                 DEBUG_LEVEL = 2
                 debug_print("Debug level set to 2 - showing more detailed output", 1)
@@ -813,13 +817,13 @@ if __name__ == "__main__":
                     debug_print(f"Will look back {days_to_look_back} days for papers", 1)
                 except ValueError:
                     debug_print(f"Unrecognized argument: {sys.argv[1]}", 1)
-                    debug_print("Usage: python academic_processor.py [all|debug|verbose|NUMBER_OF_DAYS]", 1)
+                    debug_print("Usage: python academic_processor.py [limited|debug|verbose|NUMBER_OF_DAYS]", 1)
                     sys.exit(1)
 
-        # Run the processor - no user confirmation needed
+        # Run the processor
         papers, counts = process_academic_papers(
             days_lookback=days_to_look_back,
-            process_all=process_all_keywords
+            process_all=process_all
         )
 
         debug_print("\nSUMMARY OF RESULTS:", 1)
