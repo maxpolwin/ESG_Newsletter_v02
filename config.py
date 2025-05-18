@@ -232,9 +232,18 @@ RSS_FEEDS = [
     "https://www.theguardian.com/science/rss",
     "https://www.theguardian.com/technology/rss",
     "https://www.theguardian.com/global-development/rss",
+    "https://www.nature.com/nature.rss",
+    "https://iopscience.iop.org/nsearch/rss?&searchDatePeriod=anytime&terms=climate%20change",
+    "https://iopscience.iop.org/nsearch/rss?&searchDatePeriod=anytime&terms=%20ESG",
+    "https://iopscience.iop.org/nsearch/rss?&searchDatePeriod=anytime&terms=climate%20risk",
+    "https://iopscience.iop.org/nsearch/rss?&searchDatePeriod=anytime&terms=sustainable%20finance",
     "https://www.tagesschau.de/inland/index~rss2.xml",
     "https://www.tagesschau.de/ausland/index~rss2.xml",
     "https://www.tagesschau.de/wirtschaft/index~rss2.xml",
+    "https://www.centralbank.ie/feeds/news-media-feed",
+    "https://www.centralbank.ie/feeds/markets-updates-feed",
+    "https://www.bankofgreece.gr/_layouts/15/BPC.RssFeeder/RssPage.aspx?Param=Publications&lang=en",
+    "https://www.bankofgreece.gr/_layouts/15/BPC.RssFeeder/RssPage.aspx?Param=PressReleases&lang=en",
     "https://www.tagesschau.de/wissen/index~rss2.xml",
     "https://www.tagesschau.de/investigativ/index~rss2.xml",
     "https://www.faz.net/rss/aktuell/",
@@ -569,7 +578,9 @@ RSS_FEEDS = [
     "https://bsky.app/profile/did:plc:v6otrz2gy7lej5cjbaqwbvgt/rss",
     "https://www.risk.net/rss-feeds",
     "https://www.foreignaffairs.com/rss.xml",
-    "https://bsky.app/profile/did:plc:ppavi77mhpt7smqco4zeswop/rss"
+    "https://bsky.app/profile/did:plc:ppavi77mhpt7smqco4zeswop/rss",
+    "https://www.bancaditalia.it/util/index.rss.html?lingua=en",
+    "https://bsky.app/profile/did:plc:o3kyugmaw3xhfb5mwx365cvu/rss"
 
 
 
@@ -580,6 +591,8 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "contact@realclimate.org",
+    "newsletter@circle-economy.com",
+    "mailservice@oenb.at",
     "no-reply@notifications.corporatedisclosures.org",
     "noreply@springernature.com",
     "info@sciencebasedtargets.org",
