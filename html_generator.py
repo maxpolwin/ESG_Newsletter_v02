@@ -295,6 +295,10 @@ def generate_html(articles, keyword_counts):
     Returns:
         str: File path of generated HTML report
     """
+    # DEBUG: Print the articles list before rendering
+    print("DEBUG: Articles list passed to generate_html:")
+    for i, article in enumerate(articles):
+        print(f"  {i+1}. title: {article.get('title', 'No Title')}, source_type: {article.get('source_type', 'N/A')}")
     logging.info("Generating HTML report...")
     print("Generating HTML report...")
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
@@ -312,7 +316,8 @@ def generate_html(articles, keyword_counts):
     email_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "email")
     academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic" or is_sciencedirect_article(a))
     podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")  
-    logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {podcast_count} podcasts, {academic_count} academic papers")
+    bluesky_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "bluesky")
+    logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {podcast_count} podcasts, {academic_count} academic papers, {bluesky_count} Bluesky posts")
 
     # Generate the executive summary - use the enhanced version
     executive_summary = enhanced_executive_summary(articles)
@@ -326,73 +331,6 @@ def generate_html(articles, keyword_counts):
         </div>
     </div>
     """
-
-    # --- Keyword Statistics section is commented out ---
-    # Keyword Bubbles Section
-    # if keyword_counts:
-    #     # Find the maximum count to scale bubbles appropriately
-    #     try:
-    #         # Make sure all values are integers
-    #         normalized_counts = {k: ensure_int(v, 1) for k, v in keyword_counts.items()}
-    #         max_count = max(normalized_counts.values()) if normalized_counts else 1
-    #     except ValueError:
-    #         # Fallback if there's an issue
-    #         max_count = 1
-    #
-    #     min_size = 5  # Minimum bubble size in pixels
-    #     max_size = 120  # Maximum bubble size in pixels
-    #
-    #     keyword_bubbles_html = ""
-    #     for kw, count in keyword_counts.items():
-    #         # Safe conversion of count to integer
-    #         count_int = ensure_int(count, 1)
-    #
-    #         # Calculate bubble size based on count relative to max_count (safely)
-    #         size_ratio = count_int / max_count if max_count > 0 else 1.0
-    #         size = min_size + int(size_ratio * (max_size - min_size))
-    #
-    #         # Try to find a font size that keeps text inside the bubble.
-    #         # If it doesn't fit at smaller font sizes, use alternative display
-    #         text_content = f"{kw} ({count_int})"
-    #         inside_bubble = False
-    #         chosen_font_size = 10  # Start from a readable minimum font size
-    #         for fs in range(20, 9, -1):
-    #             # Quick check to see if text can fit in the bubble
-    #             approx_width = len(text_content) * fs * 0.6
-    #             approx_height = fs * 1.6  # extra space for line break
-    #             if approx_width <= size * 0.9 and approx_height <= size * 0.9:
-    #                 chosen_font_size = fs
-    #                 inside_bubble = True
-    #                 break
-    #
-    #         if inside_bubble:
-    #             # Render text inside the bubble
-    #             keyword_bubbles_html += f"""
-    #             <div style="display: inline-block; position: relative; margin: 10px; width: {size}px; height: {size}px;
-    #                         background-color: #00827C; border-radius: 50%; text-align: center;
-    #                         vertical-align: middle; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-    #                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    #                            width: 90%; color: white; font-family: Arial, sans-serif; font-size: {chosen_font_size}px;
-    #                            font-weight: bold; line-height: 1.2;">
-    #                     {kw}<br><span style="font-size: smaller;">({count_int})</span>
-    #                 </div>
-    #             </div>
-    #             """
-    #         else:
-    #             # Render text above the bubble (since it won't fit inside)
-    #             keyword_bubbles_html += f"""
-    #             <div style="display: inline-block; margin: 10px; text-align: center;">
-    #                 <div style="font-family: Arial, sans-serif; font-weight: bold; font-size: 12px; color: #00827C; margin-bottom: 5px;">
-    #                     {kw} ({count_int})
-    #                 </div>
-    #                 <div style="position: relative; width: {size}px; height: {size}px;
-    #                             background-color: #00827C; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-    #                 </div>
-    #             </div>
-    #             """
-    # else:
-    #     # If no keywords matched, show empty stats
-    #     keyword_bubbles_html = "<div style='padding: 15px; text-align: center; color: #666;'>No keyword matches found.</div>"
 
     # Articles Section (using original v02 style)
     if articles:
@@ -408,7 +346,78 @@ def generate_html(articles, keyword_counts):
             org_tag = f"""<span class="organization-tag">{organization}</span>"""
 
             # Different styling based on the source type - using original v02 styling
-            if source_type == "rss":
+            if source_type == "bluesky":
+                raw_link = ensure_str(article.get("link", ""))
+                link = extract_actual_url(raw_link)
+                snippet = ensure_str(article.get("snippet", ""))
+                keywords = article.get("keywords", [])
+                author = ensure_str(article.get("author", ""))
+                author_url = ensure_str(article.get("author_url", ""))
+                author_avatar = ensure_str(article.get("author_avatar", ""))
+                post_type = ensure_str(article.get("post_type", ""))
+                post_language = ensure_str(article.get("post_language", ""))
+                reply_count = ensure_int(article.get("post_reply_count", 0))
+                repost_count = ensure_int(article.get("post_repost_count", 0))
+                like_count = ensure_int(article.get("post_like_count", 0))
+
+                # Build the keywords line
+                keywords_html = ""
+                for kw in keywords:
+                    keywords_html += f"<span style='display: inline-block; background-color: #BDD7D6; padding: 2px 5px; margin: 2px; border-radius: 3px;'>{ensure_str(kw)}</span> "
+
+                # Build engagement metrics
+                engagement_html = ""
+                if reply_count > 0 or repost_count > 0 or like_count > 0:
+                    engagement_html = f"""
+                    <div style="font-family: Arial, sans-serif; font-size: 12px; color: #666; margin-top: 8px;">
+                        <span style="margin-right: 10px;">💬 {reply_count} replies</span>
+                        <span style="margin-right: 10px;">🔄 {repost_count} reposts</span>
+                        <span>❤️ {like_count} likes</span>
+                    </div>
+                    """
+
+                # Build author info
+                author_html = ""
+                if author:
+                    author_html = f"""
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        {f'<img src="{author_avatar}" style="width: 24px; height: 24px; border-radius: 50%; margin-right: 8px;" alt="{author}">' if author_avatar else ''}
+                        <div>
+                            <a href="{author_url}" style="color: #00827C; text-decoration: none; font-weight: bold;">{author}</a>
+                            {f'<span style="color: #666; margin-left: 8px;">{post_type}</span>' if post_type else ''}
+                            {f'<span style="color: #666; margin-left: 8px;">({post_language})</span>' if post_language else ''}
+                        </div>
+                    </div>
+                    """
+
+                article_entry = f"""
+                <tr>
+                    <td style="padding: 0 0 20px 0;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #F0F7FF; border-radius: 8px; border-left: 4px solid #00827C;">
+                            <tr>
+                                <td style="padding: 15px;">
+                                    {author_html}
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                                        <h3 style="margin: 0; font-family: Arial, sans-serif; font-size: 16px;">
+                                            <a href="{link}" style="color: #00827C; text-decoration: none;">{title}</a>
+                                        </h3>
+                                        <span style="display: inline-block; background-color: {COLORS["primary_light"]}; color: {COLORS["primary_dark"]};
+                                              padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;">Bluesky</span>
+                                    </div>
+                                    <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
+                                        {snippet}
+                                    </div>
+                                    {engagement_html}
+                                    <div style="font-family: Arial, sans-serif; font-size: 12px; color: #5E9E9A;">
+                                        Keywords: {keywords_html}
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                """
+            elif source_type == "rss":
                 raw_link = ensure_str(article.get("link", ""))
                 link = extract_actual_url(raw_link)
                 snippet = ensure_str(article.get("snippet", ""))
@@ -634,7 +643,7 @@ def generate_html(articles, keyword_counts):
         """
 
     # Preheader text for email clients
-    preheader_text = f"Your daily digest: {len(articles)} articles found matching your keywords"
+    preheader_text = " "
 
     # Additional CSS for the executive summary section and organization tags
     additional_css = """
@@ -789,7 +798,7 @@ def generate_html(articles, keyword_counts):
         <!-- Header -->
         <header class="header" role="banner">
             <h1>Latest Relevant Articles</h1>
-            <p>Articles collected in the last 24 hours ({datetime.datetime.utcnow().strftime('%Y-%m-%d')})</p>
+            <p> </p>
         </header>
 
         <!-- Executive Summary Section -->
@@ -811,7 +820,7 @@ def generate_html(articles, keyword_counts):
 
     <!-- Articles Section (using original v02 style) -->
     <section aria-labelledby="articles-header">
-        <h2 id="articles-header" class="section-header">Articles</h2>
+        <h2 id="articles-header" class="section-header"> </h2>
         <div>
             <!-- Original v02 table-based article layout -->
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="padding: 20px;">

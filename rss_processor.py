@@ -13,6 +13,7 @@ import feedparser
 import time
 import logging
 import requests
+import sys
 from bs4 import BeautifulSoup
 from collections import Counter
 import random
@@ -41,6 +42,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
+from logging.handlers import RotatingFileHandler
 
 # For PDF processing
 try:
@@ -117,6 +119,59 @@ circuit_breakers = {}  # Dictionary to store circuit breaker states
 
 # Thread-local storage for browser instances
 thread_local = threading.local()
+
+# Add analysis log constants
+ANALYSIS_LOG_ENABLED = True  # Can be disabled if needed
+ANALYSIS_LOG_FILE = "rss_analysis_details.log"
+ANALYSIS_LOG_JSON = "rss_analysis_details.json"  # Alternative JSON format
+ANALYSIS_LOG_MAX_SIZE = 10 * 1024 * 1024  # 10MB
+ANALYSIS_LOG_BACKUP_COUNT = 5  # Keep 5 backup files
+
+# Dedicated logger setup
+def setup_analysis_logger():
+    """Setup a dedicated logger for RSS analysis steps."""
+    try:
+        analysis_logger = logging.getLogger('rss_analysis')
+        analysis_logger.setLevel(logging.INFO)
+        if analysis_logger.handlers:
+            return analysis_logger
+        handler = RotatingFileHandler(
+            ANALYSIS_LOG_FILE,
+            maxBytes=ANALYSIS_LOG_MAX_SIZE,
+            backupCount=ANALYSIS_LOG_BACKUP_COUNT
+        )
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        analysis_logger.addHandler(handler)
+        return analysis_logger
+    except Exception as e:
+        logging.error(f"Failed to setup analysis logger: {e}")
+        dummy_logger = logging.getLogger('dummy_analysis')
+        dummy_logger.addHandler(logging.NullHandler())
+        return dummy_logger
+
+# Safe analysis step logging
+def log_analysis_step(feed_url=None, entry_title=None, step=None, details=None):
+    """Safely log RSS analysis steps with failsafe error handling."""
+    if not ANALYSIS_LOG_ENABLED:
+        return
+    try:
+        logger = logging.getLogger('rss_analysis')
+        log_entry = {
+            'timestamp': datetime.now().isoformat(),
+            'feed_url': feed_url,
+            'entry_title': entry_title,
+            'step': step,
+            'details': details
+        }
+        logger.info(f"FEED: {feed_url} | TITLE: {entry_title} | STEP: {step} | DETAILS: {details}")
+        try:
+            with open(ANALYSIS_LOG_JSON, 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+        except Exception as e:
+            logger.warning(f"Could not write to JSON log: {e}")
+    except Exception as e:
+        logging.error(f"Error in analysis logging: {e}")
 
 def process_json_feed(json_feed):
     """Process JSON Feed format."""
@@ -884,40 +939,26 @@ def get_random_user_agent():
     return random.choice(user_agents)
 
 def get_custom_headers(feed_url):
-    """Generate appropriate headers based on the feed URL."""
-    # Get random user agent
-    user_agent = get_random_user_agent()
-
-    # Base headers that work for most sites
     headers = {
-        "User-Agent": user_agent,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "Accept-Encoding": "gzip, deflate, br",
-        "DNT": "1"
+        'User-Agent': get_random_user_agent(),
+        'Accept': 'application/rss+xml,application/xml;q=0.9,*/*;q=0.8',
     }
-
-    # Add referer for specific domains that need it
+    
+    # Extract domain from feed URL
     domain = urlparse(feed_url).netloc
-    if "euractiv.com" in domain:
+    
+    # Add specific headers for problematic feeds
+    if 'bis.org' in domain:
         headers.update({
-            "Referer": "https://www.euractiv.com/",
-            "Origin": "https://www.euractiv.com"
+            'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
+            'X-Requested-With': 'XMLHttpRequest'
         })
-    elif "ilo.org" in domain:
+    elif 'morganstanley.com' in domain:
         headers.update({
-            "Referer": "https://www.ilo.org/",
-            "Origin": "https://www.ilo.org"
+            'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
+            'X-Requested-With': 'XMLHttpRequest'
         })
-    elif "reuters.com" in domain:
+    elif 'think.ing.com' in domain:
         headers.update({
             "Referer": "https://www.reuters.com/",
             "Origin": "https://www.reuters.com"
@@ -1072,13 +1113,18 @@ def get_custom_headers(feed_url):
             "Referer": "https://ec.europa.eu/eurostat/",
             "Origin": "https://ec.europa.eu/eurostat"
         })
+    elif "bdi.eu" in domain:
+        headers.update({
+            "Referer": "https://www.bdi.eu/",
+            "Origin": "https://www.bdi.eu"
+        })
 
     # Some feeds require specific accept headers
     if feed_url.endswith('.xml') or '/rss/' in feed_url or '/feed/' in feed_url or 'atom' in feed_url:
         headers.update({
             "Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.7"
         })
-
+    
     return headers
 
 def validate_feed_content(content):
@@ -1342,7 +1388,7 @@ def fetch_feed_with_retry(feed_url):
                         return content, format_type
 
             # If we suspect Cloudflare protection and haven't tried bypassing it yet
-            if attempt > 3 and USE_BROWSER_AUTOMATION and not cloudflare_tried and ('cloudflare' in feed_url.lower() or any('cloudflare' in str(e).lower() for e in problematic_feeds.get(feed_url, []))):
+            if attempt > 3 and USE_BROWSER_AUTOMATION and not cloudflare_tried and ('cloudflare' in domain.lower() or any('cloudflare' in str(e).lower() for e in problematic_feeds.get(feed_url, []))):
                 cloudflare_tried = True
                 logging.info(f"Trying to bypass Cloudflare protection for feed: {feed_url}")
                 cf_result = bypass_cloudflare(feed_url)
@@ -1761,7 +1807,7 @@ def fetch_rss_entries(feeds_to_process=None):
                         published_time = time.mktime(entry.created_parsed)
                     else:
                         # Try parsing date from string fields
-                        date_fields = ['published', 'updated', 'created', 'date']
+                        date_fields = ['published', 'updated', 'created', 'date', 'dc:date']
                         parsed_date = None
 
                         for field in date_fields:
@@ -1776,8 +1822,24 @@ def fetch_rss_entries(feeds_to_process=None):
                                         '%Y-%m-%dT%H:%M:%S',         # ISO 8601 without timezone
                                         '%Y-%m-%d %H:%M:%S',         # Simple datetime
                                         '%Y-%m-%d',                  # Simple date
+                                        '%d %b %Y',                  # ESMA format (e.g., "07 May 2025")
                                     ]
 
+                                    # Special handling for ESMA feed
+                                    if 'esma.europa.eu' in feed_url:
+                                        # Try to extract date from HTML time element
+                                        if 'description' in entry:
+                                            soup = BeautifulSoup(entry.description, 'html.parser')
+                                            time_elem = soup.find('time')
+                                            if time_elem and 'datetime' in time_elem.attrs:
+                                                try:
+                                                    parsed_date = datetime.fromisoformat(time_elem['datetime'].replace('Z', '+00:00'))
+                                                    published_time = time.mktime(parsed_date.timetuple())
+                                                    break
+                                                except (ValueError, AttributeError) as e:
+                                                    logging.error(f"Failed to parse ESMA datetime: {e}")
+
+                                    # Try standard date formats
                                     for fmt in date_formats:
                                         try:
                                             parsed_date = datetime.strptime(entry[field], fmt)
@@ -1883,9 +1945,24 @@ def process_entry(entry):
         link = entry.get("link", "").strip()
         description = entry.get("description", "").strip()
         source_info = entry.get("source_info", {})
+        feed_url = source_info.get("url", "unknown_feed")
+
+        # Log initial entry processing
+        log_analysis_step(
+            feed_url=feed_url,
+            entry_title=title,
+            step="INITIAL_PROCESSING",
+            details={"link": link}
+        )
 
         # Skip entries with missing required fields
         if not title or not link:
+            log_analysis_step(
+                feed_url=feed_url,
+                entry_title=title or "No Title",
+                step="SKIPPED",
+                details={"reason": "Missing required fields"}
+            )
             logging.warning(f"Skipping entry with missing required fields: {title or 'No Title'}")
             return None
 
@@ -1896,70 +1973,54 @@ def process_entry(entry):
             entry.get("summary", ""),
             entry.get("summary_detail", {}).get("value", "")
         ]
-
-        # Combine all content fields and clean HTML
         full_text = " ".join(filter(None, content_fields))
         soup = BeautifulSoup(full_text, "html.parser")
         full_text = soup.get_text(separator=" ", strip=True)
-
-        # Extract full content if enabled
         full_content = None
         if EXTRACT_FULL_CONTENT and link:
             full_content = extract_full_content(link, entry)
             if full_content and full_content.get('text'):
                 full_text += " " + full_content.get('text')
-
-        # Process attachments
         attachments = process_attachments(entry)
-
-        # Normalize text for keyword matching
         full_text_normalized = normalize_text(full_text)
         title_normalized = normalize_text(title)
-
-        # Add spaces at beginning and end for word boundary checks
         padded_text = " " + full_text_normalized + " "
         padded_title = " " + title_normalized + " "
-
-        # Check for keyword matches with weighted scoring
         matched_keywords = []
         keyword_scores = {}
-
         for kw in KEYWORDS:
             kw_normalized = normalize_text(kw)
             score = 0
-
-            # Title matches are worth more
             if kw.startswith(" ") or kw.endswith(" "):
                 if kw_normalized in padded_title:
-                    score += 5  # Increased weight for title matches
+                    score += 5
                 if kw_normalized in padded_text:
                     score += 1
             else:
                 if kw_normalized in title_normalized:
-                    score += 5  # Increased weight for title matches
+                    score += 5
                 if kw_normalized in full_text_normalized:
                     score += 1
-
-            # Bonus score for multiple occurrences
             if score > 0:
-                # Count occurrences (with word boundaries for exact matches)
                 if kw.startswith(" ") or kw.endswith(" "):
                     title_count = padded_title.count(kw_normalized)
                     text_count = padded_text.count(kw_normalized)
                 else:
                     title_count = title_normalized.count(kw_normalized)
                     text_count = full_text_normalized.count(kw_normalized)
-
-                # Add bonus for multiple occurrences
                 if title_count > 1:
-                    score += min(title_count - 1, 3) * 2  # Up to 3 bonus points for title
+                    score += min(title_count - 1, 3) * 2
                 if text_count > 2:
-                    score += min(text_count - 2, 5)  # Up to 5 bonus points for text
-
+                    score += min(text_count - 2, 5)
                 matched_keywords.append(kw)
                 keyword_scores[kw] = score
-
-        # Check for negative keywords
+        # Log keyword matches
+        log_analysis_step(
+            feed_url=feed_url,
+            entry_title=title,
+            step="KEYWORD_MATCHING",
+            details={"matched_keywords": matched_keywords, "scores": keyword_scores}
+        )
         excluded_keywords = []
         for kw in NEGATIVE_KEYWORDS:
             kw_normalized = normalize_text(kw)
@@ -1967,113 +2028,97 @@ def process_entry(entry):
                 excluded_keywords.append(kw)
             elif kw_normalized in full_text_normalized:
                 excluded_keywords.append(kw)
-
         if matched_keywords and not excluded_keywords:
-            # Extract snippet with improved formatting
-            snippet = " ".join(full_text.split()[:150]) + "..." if len(full_text.split()) > 150 else full_text
-
-            # Extract image with improved fallback chain
-            image_url = None
-            if full_content and 'images' in full_content and full_content['images']:
-                image_url = full_content['images'][0]
-            elif 'media_content' in entry and entry.media_content:
-                for media in entry.media_content:
-                    if 'url' in media and media.get('type', '').startswith('image/'):
-                        image_url = media['url']
-                        break
-            elif 'enclosures' in entry and entry.enclosures:
-                for enclosure in entry.enclosures:
-                    if 'url' in enclosure and enclosure.get('type', '').startswith('image/'):
-                        image_url = enclosure['url']
-                        break
-            elif 'links' in entry:
-                for link_item in entry.links:
-                    if link_item.get('type', '').startswith('image/'):
-                        image_url = link_item.get('href')
-                        break
-
-            # Extract or generate publish date
-            pub_date = entry.get('published', entry.get('updated', ''))
-            if not pub_date and 'published_parsed' in entry and entry.published_parsed:
-                pub_date = time.strftime('%Y-%m-%d %H:%M:%S', entry.published_parsed)
-            elif not pub_date and 'updated_parsed' in entry and entry.updated_parsed:
-                pub_date = time.strftime('%Y-%m-%d %H:%M:%S', entry.updated_parsed)
-
-            # Extract author information
-            author = entry.get('author', '')
-            if not author and full_content and 'authors' in full_content and full_content['authors']:
-                author = ', '.join(full_content['authors'])
-
-            # Extract categories/tags
-            categories = []
-            if 'tags' in entry:
-                categories = [tag.get('term', tag.get('label', '')) for tag in entry.tags if tag.get('term') or tag.get('label')]
-            elif 'categories' in entry:
-                categories = entry.categories
-
-            # Store article data with additional metadata
+            log_analysis_step(
+                feed_url=feed_url,
+                entry_title=title,
+                step="ACCEPTED",
+                details={"keyword_scores": keyword_scores, "content_length": len(full_text)}
+            )
             filtered_entry = {
                 "title": title,
                 "link": link,
-                "snippet": snippet,
+                "snippet": " ".join(full_text.split()[:150]) + "..." if len(full_text.split()) > 150 else full_text,
                 "keywords": matched_keywords,
                 "keyword_scores": keyword_scores,
                 "article_id": entry.get('article_id'),
                 "source_type": "rss",
                 "source_info": source_info,
-                "image_url": image_url,
-                "pub_date": pub_date,
-                "author": author,
-                "categories": categories,
+                "image_url": None,
+                "pub_date": entry.get('published', entry.get('updated', '')),
+                "author": entry.get('author', ''),
+                "categories": [tag.get('term', '') for tag in entry.get('tags', [])] if 'tags' in entry else [],
                 "content_length": len(full_text),
                 "full_content": full_content['text'] if full_content and 'text' in full_content else None,
                 "attachments": attachments
             }
-
             return filtered_entry, matched_keywords, keyword_scores
         elif excluded_keywords:
+            log_analysis_step(
+                feed_url=feed_url,
+                entry_title=title,
+                step="EXCLUDED",
+                details={"reason": "Negative keyword match", "excluded_keywords": excluded_keywords}
+            )
             logging.info(f"Excluded article due to negative keyword match: {title}")
             return None
-
+        else:
+            log_analysis_step(
+                feed_url=feed_url,
+                entry_title=title,
+                step="EXCLUDED",
+                details={"reason": "No keyword matches"}
+            )
+            return None
     except Exception as e:
         logging.error(f"Error processing entry: {e}", exc_info=True)
+        log_analysis_step(
+            feed_url=feed_url if 'feed_url' in locals() else "unknown",
+            entry_title=title if 'title' in locals() else "unknown",
+            step="ERROR",
+            details={"error": str(e)}
+        )
         return None
 
-def process_rss_feeds(process_all=True, feed_limit=3): #changed from False to True
-    """
-    Main function to process RSS feeds.
-    
-    Args:
-        process_all (bool): If True, process all feeds. If False, process only a subset
-                          of feeds to avoid excessive API calls.
-        feed_limit (int): Maximum number of feeds to process when process_all is False.
-                         Default is 3 feeds.
-    """
+def process_rss_feeds(process_all=True, feed_limit=3):
     try:
-        # Register namespaces at the start
+        setup_analysis_logger()
+        log_analysis_step(
+            step="PROCESS_STARTED",
+            details={
+                "process_all": process_all,
+                "feed_limit": feed_limit,
+                "feeds_count": len(RSS_FEEDS)
+            }
+        )
         register_custom_namespaces()
-        
-        # Determine which feeds to process
         if process_all:
             feeds_to_process = RSS_FEEDS
             logging.info(f"Processing all {len(feeds_to_process)} feeds")
             print(f"Processing all {len(feeds_to_process)} feeds")
         else:
-            # Limit to specified number of feeds to avoid excessive API calls
             feeds_to_process = RSS_FEEDS[:feed_limit] if len(RSS_FEEDS) > feed_limit else RSS_FEEDS
             logging.info(f"Processing {len(feeds_to_process)} feeds (limited to {feed_limit})")
             print(f"Processing {len(feeds_to_process)} feeds (limited to {feed_limit})")
-        
         entries = fetch_rss_entries(feeds_to_process)
         if not entries:
             logging.warning("No articles found within the last 24 hours.")
             print("No articles found within the last 24 hours.")
             return [], Counter()
-
-        # All entries are already normalized from fetch_rss_entries
         filtered_articles, keyword_counts = filter_rss_entries(entries)
+        log_analysis_step(
+            step="PROCESS_COMPLETED",
+            details={
+                "articles_count": len(filtered_articles),
+                "top_keywords": dict(keyword_counts.most_common(10))
+            }
+        )
         return filtered_articles, keyword_counts
     except Exception as e:
+        log_analysis_step(
+            step="PROCESS_FAILED",
+            details={"error": str(e)}
+        )
         logging.error(f"Error processing feeds: {e}", exc_info=True)
         print(f"Error processing feeds: {e}")
         return [], Counter()
@@ -2091,7 +2136,12 @@ def register_custom_namespaces():
         'xbrl': 'http://www.xbrl.org/2003/instance',
         'oai-pmh': 'http://www.openarchives.org/OAI/2.0/',
         'dcat': 'http://www.w3.org/ns/dcat#',
-        'schema': 'http://schema.org/'
+        'schema': 'http://schema.org/',
+        # Add missing namespaces for ING Think feed
+        'atom': 'http://www.w3.org/2005/Atom',
+        'sy': 'http://purl.org/rss/1.0/modules/syndication/',
+        'admin': 'http://webns.net/mvcb/',
+        'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
     }
     
     for prefix, uri in namespaces.items():

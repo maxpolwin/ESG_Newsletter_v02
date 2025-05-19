@@ -135,6 +135,11 @@ logging.basicConfig(
 TIME_THRESHOLD = 24 * 3600  # 24 hours in seconds - for RSS and email collection
 CLEANUP_THRESHOLD = 2  # Days - for email cleanup
 
+# Deduplication settings
+ENABLE_DEDUPLICATION = True  # Master switch for deduplication
+DEDUPLICATION_WINDOW_DAYS = 30  # How far back to check for duplicates
+DEDUPLICATION_METHOD = "strict"  # Options: "strict" (exact match) or "fuzzy" (similar content)
+
 # Main color scheme - centralized for easy theming
 COLORS = {
     "primary": "#00827C",
@@ -174,12 +179,16 @@ RSS_FEEDS = [
     "https://digital.soas.ac.uk/rss/all_rss.xml",
     "https://utorontopress.com/feed/",
     "https://wcd.copernicus.org/xml/rss2_0.xml",
+    "https://www.livescience.com/feeds/all",
    # "https://www.generali.com/.rest/rss/v1/feed?name=pressReleases",
     "https://www.destatis.de/SiteGlobals/Functions/RSSFeed/DE/RSSNewsfeed/Aktuell.xml",
     "https://rss.sueddeutsche.de/alles",
     "https://think.ing.com/rss",
+    "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science",
     "https://www.ncei.noaa.gov/access/monitoring/monthly-report/rss.xml",
     "https://www.hec.edu/en/knowledge/feed.xml",
+    "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=sciadv",
+    "https://www.science.org/rss/news_current.xml",
     "https://www.hec.edu/en/news/feed.xml",
     "https://mid.ecb.europa.eu/rss/mid.xml",
     "https://presseportal.greenpeace.de/press_releases.atom",
@@ -219,6 +228,7 @@ RSS_FEEDS = [
     "https://www.esrb.europa.eu/rss/esrb_policy.rss",
     "https://www.esrb.europa.eu/rss/nat_policy.rss",
     "https://www.theguardian.com/europe/rss",
+    "https://www.science.org/action/showFeed?type=axatoc&feed=rss&jc=science",
     "https://www.theguardian.com/uk/commentisfree",
     "https://www.theguardian.com/environment/climate-crisis/rss",
     "https://www.theguardian.com/world/rss",
@@ -227,9 +237,18 @@ RSS_FEEDS = [
     "https://www.theguardian.com/science/rss",
     "https://www.theguardian.com/technology/rss",
     "https://www.theguardian.com/global-development/rss",
+    "https://www.nature.com/nature.rss",
+    "https://iopscience.iop.org/nsearch/rss?&searchDatePeriod=anytime&terms=climate%20change",
+    "https://iopscience.iop.org/nsearch/rss?&searchDatePeriod=anytime&terms=%20ESG",
+    "https://iopscience.iop.org/nsearch/rss?&searchDatePeriod=anytime&terms=climate%20risk",
+    "https://iopscience.iop.org/nsearch/rss?&searchDatePeriod=anytime&terms=sustainable%20finance",
     "https://www.tagesschau.de/inland/index~rss2.xml",
     "https://www.tagesschau.de/ausland/index~rss2.xml",
     "https://www.tagesschau.de/wirtschaft/index~rss2.xml",
+    "https://www.centralbank.ie/feeds/news-media-feed",
+    "https://www.centralbank.ie/feeds/markets-updates-feed",
+    "https://www.bankofgreece.gr/_layouts/15/BPC.RssFeeder/RssPage.aspx?Param=Publications&lang=en",
+    "https://www.bankofgreece.gr/_layouts/15/BPC.RssFeeder/RssPage.aspx?Param=PressReleases&lang=en",
     "https://www.tagesschau.de/wissen/index~rss2.xml",
     "https://www.tagesschau.de/investigativ/index~rss2.xml",
     "https://www.faz.net/rss/aktuell/",
@@ -245,8 +264,10 @@ RSS_FEEDS = [
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Massnahmen.xml",
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Angebotsausschreibung.xml",
     "https://www.europarl.europa.eu/rss/doc/press-releases/en.xml",
+    "https://www.finanzen.net/rss/analysen",
     "https://www.europarl.europa.eu/rss/doc/last-news-committees/en.xml",
     "http://www.bankingsupervision.europa.eu/rss/press.html",
+    "https://www.finanzen.net/rss/news",
     "https://www.bankingsupervision.europa.eu/rss/pub.html",
     "https://officialblogofunio.com/feed/",
     "http://eucenterillinois.blogspot.com/feeds/posts/default",
@@ -273,6 +294,7 @@ RSS_FEEDS = [
     "https://ssir.org/site/rss_2.0",
     "https://insights.som.yale.edu/rss",
     "https://www.pik-potsdam.de/de/aktuelles/nachrichten/nachrichten/rss.xml",
+    "https://www.pik-potsdam.de/en/news/latest-news/latest-news/rss.xml",
     "https://www.ufz.de/index.php?de=34299&vera_rss",
     "https://www.ufz.de/index.php?de=18084&vera_rss",
     "https://www.semafor.com/rss.xml",
@@ -369,7 +391,7 @@ RSS_FEEDS = [
     "http://feeds.rsc.org/rss/ew",
     "http://feeds.rsc.org/rss/se",
     "https://www.unep.org/news-and-stories/rss.xml",
-    "https://www.sciencedaily.com/newsfeeds.htm",
+    "https://www.sciencedaily.com/newsfeeds.html",
     "https://www.eurotopics.net/export/de/rss.xml",
     "https://www.esf.de/SiteGlobals/Functions/RSSFeed/DE/Aktuelles/Aktuelles.xml?nn=c610df2a-40bb-48bf-8b32-c629392a0115",
     "https://www.ble.de/SiteGlobals/Functions/RSS/DE/Startseite.xml?nn=633724",
@@ -463,6 +485,7 @@ RSS_FEEDS = [
     "https://rpc.cfainstitute.org/RPC-Publications-Feed",
     "https://www.unep.org/news-and-stories/rss.xml",
     "https://www.unepfi.org/category/publications/rss",
+    "https://markcliffe.wordpress.com/feed/",
     "https://bdi.eu/rss",
     "https://www.dihk-verlag.de/shop_DocDtl.aspx?id=1127",
     "http://www.zew.de/en/rss/rss.php",
@@ -548,10 +571,12 @@ RSS_FEEDS = [
     "https://www.presseportal.ch/de/rss/presseportal.rss2?langid=1",
     "https://bsky.app/profile/did:plc:lj6hjlpiksxjbmy2teo3ynoz/rss",
     "https://www.spiegel.de/schlagzeilen/tops/index.rss",
+    "https://theconversation.com/articles.atom?language=en",
     "https://www.spiegel.de/schlagzeilen/index.rss",
     "https://bsky.app/profile/did:plc:n3k7hkydcbm64tcvfcso3yt6/rss",
     "https://bsky.app/profile/bioversityciat.bsky.social/rss",
     "https://www.bankofengland.co.uk/rss/bank-overground",
+    "https://www.project-syndicate.org/RSS",
     "https://www.bankofengland.co.uk/rss/events",
     "https://www.bankofengland.co.uk/rss/knowledgebank",
     "https://www.bankofengland.co.uk/rss/news",
@@ -562,8 +587,15 @@ RSS_FEEDS = [
     "https://www.bde.es/wbe/en/inicio/rss/rss-normativa/",
     "https://bsky.app/profile/did:plc:v6otrz2gy7lej5cjbaqwbvgt/rss",
     "https://www.risk.net/rss-feeds",
-    "https://www.foreignaffairs.com/rss.xml"
-
+    "https://www.foreignaffairs.com/rss.xml",
+    "https://bsky.app/profile/did:plc:ppavi77mhpt7smqco4zeswop/rss",
+    "https://www.bancaditalia.it/util/index.rss.html?lingua=en",
+    "https://bsky.app/profile/did:plc:o3kyugmaw3xhfb5mwx365cvu/rss",
+    "https://bsky.app/profile/did:plc:icmgbi2h7mwmbojmifv7a7hp/rss",
+    "https://www.weareeurope.group/blog/blog-de-l-association-2/feed",
+    "https://www.cisl.cam.ac.uk/news/feed/aggregator/RSS",
+    "https://fra.europa.eu/en/publications-and-resources/publications.rss.xml",
+    "https://www.lemonde.fr/en/rss/une.xml"
 
 
     # More feeds can be added here
@@ -573,6 +605,15 @@ RSS_FEEDS = [
 # List of trusted newsletter senders
 TRUSTED_SENDERS = [
     "contact@realclimate.org",
+    "newsletter@circle-economy.com",
+    "mailservice@oenb.at",
+    "sustainableviews@newsletter.ftspecialist.com",
+    "sustainableviews@contact.ftspecialist.com",
+    "treo@substack.com",
+    "noreply@relai.lemonde.fr",
+    "no-reply@notifications.corporatedisclosures.org",
+    "noreply@springernature.com",
+    "info@sciencebasedtargets.org",
     "bafin@noreply.bund.de",
     "newsletter@gdv.de",
     "noreply@suomenpankki.eu",
@@ -600,20 +641,30 @@ TRUSTED_SENDERS = [
     "talkingclimatenewsletter@substack.com",
     "information@kpmg.de",
     "information@kpmg.de",
+    "scienceadviser@aaas.org",
     "webmestre@ngfs.net",
     "emailteam@emails.hbr.org",
     "versand@institut-fuer-menschenrechte.de",
     "accumulationzone@substack.com",
     "hello=ctvc.co@ghost.ctvc.co",
     "newsletter@forum-ng.org",
+    "christopherchico@substack.com",
+    "foundationteam@economist.com",
     "info@thebureauinvestigates.com",
     "no-reply@data.cdp.net",
+    "oomi@energyinst.org",
+    "mailservice@oenb.at",
     "noreply@talk.economistfoundation.org",
     "noreply@talk.economistfoundation.org",
+    "info@oxfordmartin.ox.ac.uk",
+    "gri@lse.ac.uk",
     "noreply@talk.economistfoundation.org",
     "office@regulatoryblog.eu",
+    "newsletter@cicero.de",
     "energysnapshot@iea.org",
     "noreply@mail.bundesbank.de",
+    "climatemajorityproject@substack.com",
+    "publishing@email.mckinsey.com",
     "newsletters@bruegel.org",
     "bradzarnett@substack.com",
     "info@greencentralbanking.com",
@@ -708,7 +759,12 @@ TRUSTED_SENDERS = [
     "briefing@nature.com",
     "pmjukysgdjyqbkbglwkktx@simplelogin.co",
     "editors@heatmap.news",
-    "whitestaginvesting@substack.com"
+    "whitestaginvesting@substack.com",
+    "sustainableviews@newsletter.ftspecialist.com",
+    "sustainableviews@contact.ftspecialist.com",
+    "treo@substack.com",
+    "noreply@relai.lemonde.fr"
+
     #add more as you subscribe to more newsletters
 ]
 

@@ -23,18 +23,19 @@ def get_keywords():
     "CSR Directive Implementation Act", " CSR-RUG ", "Deutscher Nachhaltigkeitskodex",
     " DNK ", "European Green Deal", "Paris Agreement", "Climate Risk", " CBAM ",
     "EU Carbon Border Adjustment Mechanism", "EU ETS", "European Union Emissions Trading System",
-    "GHG Protocol", "Treibhausgas", "GHG", "Green House Gase", "EU Green Bonds Standard",
-    "EU GBS", "EU Climate Transition Benchmark", "EU CTB", "Paris-Aligned",
-    "EU PAB", "PCAF", "SDGs", "Supply Chain Sourcing Obligations Act", "LkSG",
-    "Lieferkettensorgfaltspflichtengesetz", "B Corp", "Social Business", "Social Enterprise",
-    "Basel IV", "Basel III", "Basel regulation", "MaRisk", "Stress Test", "IPCC", "EOIPA",
+    "GHG Protocol", "Treibhausgas", "Green House Gase", "EU Green Bonds Standard", "planetary boundaries",
+    "EU GBS", "EU Climate Transition Benchmark", "EU CTB", "Paris-Aligned", "Klimafolgenforschung",
+    "EU PAB", "PCAF", "SDGs", "Supply Chain Sourcing Obligations Act", "LkSG", "Attribution Science",
+    "Lieferkettensorgfaltspflichtengesetz", "B Corp", "Social Business", "Social Enterprise", "Attributionsforschung",
+    "Basel IV", "Basel III", "Basel regulation", "MaRisk", "Stress Test", "IPCC", "COP 30","EOIPA",
     "EU Regulation on Deforestation-free Products", "net zero", "net-zero", "decarbonize", "decarbonise",
     "carbon credit", "biodiversity", "TNFD", "renaturation", "rewilding", "Nature based", "Nature Risk", "Biodiversity Risk" ," NbS ",
     "Nature-based", "Partnership for Carbon Accounting Financials", "Hydrogen", "Wasserstoff", "Decarbonising",
     "Decarbonizing", " NGFS ", "climate scenario", "climate policy", "stranded asset", "transition risk", "physical risk",
     "transition path", " VSME ", "(VSME)", "ESG-Score", "ESG-Rating", " CDR ", " CRCF ", "(CRCF)", "Carbon Removal", "Carbon Farming",
     "Swiss Climate Law", "CO2 Act", "CO2-Act", "HR DD", "HR Due Diligence", "ESG Rating", " ISSB ",
-    "Implied Temperature Rise as a Measure of Alignment", "ITR-Score", "ITR-Rating", "Implied Temperature Rise", "Natural Capital"
+    "Implied Temperature Rise as a Measure of Alignment", "ITR-Score", "ITR-Rating", "Implied Temperature Rise", "Natural Capital",
+    "Grüner Pfandbrief", "ESG-Szenarioanalyse"
 }
 
     # Negative keywords - content containing these will be EXCLUDED
@@ -42,7 +43,7 @@ def get_keywords():
     "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb", "Marisken", "trabalho", "Sustentabilidade",
     "Mariskal", "Conspiracy", "Paluten", "CRAFT ATTACK", "Sustainy ",
     "TTPP", "blyaaaaaaaaaaaaaaaaat", "detox", "Basti GHG", "Detox", "Blondie", "MM36"
-    
+
 }
 
     return keywords, negative_keywords

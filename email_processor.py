@@ -312,7 +312,8 @@ def filter_newsletters(newsletters):
                 "View this email in your browser", "Diese E-Mail im Browser darstellen.",
                 "Wird diese E-Mail nicht richtig angezeigt? Im Browser öffnen", "Browser View"
                 "View this email in your browser", "Im Browser öffnen und Ergänzungen lesen.",
-                "View this email in your browser", "Click here to view in your browser", "heatmapdaily_logo"
+                "View this email in your browser", "Click here to view in your browser", "heatmapdaily_logo",
+                "THIS WEEK'S ISSUE"
             ]
             
             # Extract all links for potential article references
