@@ -606,6 +606,7 @@ TRUSTED_SENDERS = [
     "sustainableviews@newsletter.ftspecialist.com",
     "sustainableviews@contact.ftspecialist.com",
     "treo@substack.com",
+    "noreply@relai.lemonde.fr",
     "no-reply@notifications.corporatedisclosures.org",
     "noreply@springernature.com",
     "info@sciencebasedtargets.org",
