@@ -34,7 +34,8 @@ def get_keywords():
     "Decarbonizing", " NGFS ", "climate scenario", "climate policy", "stranded asset", "transition risk", "physical risk",
     "transition path", " VSME ", "(VSME)", "ESG-Score", "ESG-Rating", " CDR ", " CRCF ", "(CRCF)", "Carbon Removal", "Carbon Farming",
     "Swiss Climate Law", "CO2 Act", "CO2-Act", "HR DD", "HR Due Diligence", "ESG Rating", " ISSB ",
-    "Implied Temperature Rise as a Measure of Alignment", "ITR-Score", "ITR-Rating", "Implied Temperature Rise", "Natural Capital"
+    "Implied Temperature Rise as a Measure of Alignment", "ITR-Score", "ITR-Rating", "Implied Temperature Rise", "Natural Capital",
+    "Grüner Pfandbrief", "ESG-Szenarioanalyse"
 }
 
     # Negative keywords - content containing these will be EXCLUDED

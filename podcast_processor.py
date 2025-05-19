@@ -763,7 +763,7 @@ if __name__ == "__main__":
     spotify_client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
     
     # Default values
-    process_all = False #changed from False to True
+    process_all = True #changed from False to True
     keyword_limit = 3
     hours_ago = 24
     

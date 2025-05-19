@@ -250,8 +250,10 @@ RSS_FEEDS = [
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Massnahmen.xml",
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Angebotsausschreibung.xml",
     "https://www.europarl.europa.eu/rss/doc/press-releases/en.xml",
+    "https://www.finanzen.net/rss/analysen",
     "https://www.europarl.europa.eu/rss/doc/last-news-committees/en.xml",
     "http://www.bankingsupervision.europa.eu/rss/press.html",
+    "https://www.finanzen.net/rss/news",
     "https://www.bankingsupervision.europa.eu/rss/pub.html",
     "https://officialblogofunio.com/feed/",
     "http://eucenterillinois.blogspot.com/feeds/posts/default",
@@ -554,10 +556,12 @@ RSS_FEEDS = [
     "https://www.presseportal.ch/de/rss/presseportal.rss2?langid=1",
     "https://bsky.app/profile/did:plc:lj6hjlpiksxjbmy2teo3ynoz/rss",
     "https://www.spiegel.de/schlagzeilen/tops/index.rss",
+    "https://theconversation.com/articles.atom?language=en",
     "https://www.spiegel.de/schlagzeilen/index.rss",
     "https://bsky.app/profile/did:plc:n3k7hkydcbm64tcvfcso3yt6/rss",
     "https://bsky.app/profile/bioversityciat.bsky.social/rss",
     "https://www.bankofengland.co.uk/rss/bank-overground",
+    "https://www.project-syndicate.org/RSS",
     "https://www.bankofengland.co.uk/rss/events",
     "https://www.bankofengland.co.uk/rss/knowledgebank",
     "https://www.bankofengland.co.uk/rss/news",
@@ -569,7 +573,10 @@ RSS_FEEDS = [
     "https://bsky.app/profile/did:plc:v6otrz2gy7lej5cjbaqwbvgt/rss",
     "https://www.risk.net/rss-feeds",
     "https://www.foreignaffairs.com/rss.xml",
-    "https://bsky.app/profile/did:plc:ppavi77mhpt7smqco4zeswop/rss"
+    "https://bsky.app/profile/did:plc:ppavi77mhpt7smqco4zeswop/rss",
+    "https://www.pnas.org/action/showFeed?type=etoc&feed=rss&jc=PNAS",
+    "https://www.pnas.org/action/showFeed?type=searchTopic&taxonomyCode=type&tagCode=twip"
+
 
 
 
@@ -718,7 +725,12 @@ TRUSTED_SENDERS = [
     "briefing@nature.com",
     "pmjukysgdjyqbkbglwkktx@simplelogin.co",
     "editors@heatmap.news",
-    "whitestaginvesting@substack.com"
+    "whitestaginvesting@substack.com",
+    "sustainableviews@newsletter.ftspecialist.com",
+    "sustainableviews@contact.ftspecialist.com",
+    "treo@substack.com",
+    "noreply@relai.lemonde.fr"
+
     #add more as you subscribe to more newsletters
 ]
 
