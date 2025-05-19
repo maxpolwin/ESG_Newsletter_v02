@@ -1316,6 +1316,7 @@ def fetch_feed_with_retry(feed_url):
     # Sanitize URL first
     feed_url = sanitize_feed_url(feed_url)
     if not feed_url:
+        logging.error(f"Invalid feed URL: {feed_url}")
         feed_monitor.record_fetch(feed_url, False, "Invalid URL")
         return None
 
@@ -1327,6 +1328,7 @@ def fetch_feed_with_retry(feed_url):
 
     # Get domain for rate limiting
     domain = urlparse(feed_url).netloc
+    logging.info(f"Processing feed from domain: {domain}")
 
     # Check rate limit
     while not rate_limiter.can_make_request(domain):
@@ -1386,6 +1388,8 @@ def fetch_feed_with_retry(feed_url):
                         if feed_url in problematic_feeds:
                             del problematic_feeds[feed_url]
                         return content, format_type
+                    else:
+                        logging.error(f"Invalid content received from browser automation for feed: {feed_url}")
 
             # If we suspect Cloudflare protection and haven't tried bypassing it yet
             if attempt > 3 and USE_BROWSER_AUTOMATION and not cloudflare_tried and ('cloudflare' in domain.lower() or any('cloudflare' in str(e).lower() for e in problematic_feeds.get(feed_url, []))):
@@ -1403,11 +1407,14 @@ def fetch_feed_with_retry(feed_url):
                         if feed_url in problematic_feeds:
                             del problematic_feeds[feed_url]
                         return content, format_type
+                    else:
+                        logging.error(f"Invalid content received after Cloudflare bypass for feed: {feed_url}")
 
             # Try each header combination
             for header_func in header_combinations:
                 try:
                     headers = header_func()
+                    logging.info(f"Attempt {attempt}/{RETRY_ATTEMPTS} with headers: {headers}")
 
                     # Add Cloudflare cookies if we have them
                     cookies = None
@@ -1423,9 +1430,6 @@ def fetch_feed_with_retry(feed_url):
                                 "http": proxy,
                                 "https": proxy
                             }
-
-                    logging.info(f"Fetching feed (attempt {attempt}/{RETRY_ATTEMPTS}) with headers: {headers}")
-                    print(f"Fetching feed (attempt {attempt}/{RETRY_ATTEMPTS})")
 
                     # Measure response time
                     start_time = time.time()
@@ -1444,14 +1448,22 @@ def fetch_feed_with_retry(feed_url):
                     response_time = time.time() - start_time
                     feed_monitor.record_response_time(feed_url, response_time)
 
+                    # Log response details
+                    logging.info(f"Response status: {response.status_code}")
+                    logging.info(f"Response headers: {dict(response.headers)}")
+                    logging.info(f"Response time: {response_time:.2f}s")
+
                     response.raise_for_status()
 
-                    # Log response info
-                    logging.info(f"Response status: {response.status_code}, Content-Type: {response.headers.get('Content-Type', 'unknown')}")
+                    # Check content type
+                    content_type = response.headers.get('Content-Type', '').lower()
+                    logging.info(f"Content-Type: {content_type}")
 
                     # Validate feed content
                     validation_result = validate_feed_content(response.content)
                     if not validation_result:
+                        logging.error(f"Invalid feed content for {feed_url}")
+                        logging.error(f"First 500 bytes of content: {response.content[:500]}")
                         raise ValueError("Invalid feed content")
 
                     # If feed was previously problematic but now succeeded, reset its status
@@ -1754,146 +1766,131 @@ def fetch_rss_entries(feeds_to_process=None):
 
         for feed_url in feeds:
             try:
-                feed_content, format_type = fetch_feed_with_retry(feed_url)
+                # Enhanced error handling for feed fetching
+                feed_result = fetch_feed_with_retry(feed_url)
+                if feed_result is None:
+                    logging.warning(f"Skipping feed {feed_url} due to fetch failure")
+                    continue
+                
+                feed_content, format_type = feed_result
                 if not feed_content:
-                    continue  # Skip to next feed if fetch failed
+                    logging.warning(f"Empty content received for feed {feed_url}")
+                    continue
 
                 # Process based on format type
-                if format_type == 'json':
-                    try:
-                        json_feed = json.loads(feed_content)
-                        if 'version' in json_feed and json_feed.get('version', '').startswith('https://jsonfeed.org/version/'):
-                            feed = process_json_feed(json_feed)
-                    except json.JSONDecodeError:
-                        continue
-                
-                elif format_type == 'sitemap':
-                    feed = process_sitemap(feed_content)
-                
-                elif format_type == 'opml':
-                    feed = process_opml(feed_content)
-                
-                elif format_type == 'podcast':
-                    feed = process_podcast_feed(feed_content)
-                
-                elif format_type in ['newsml', 'niftml', 'sportsml']:
-                    feed = process_newsml_feed(feed_content, format_type)
-                
-                elif format_type == 'xbrl':
-                    feed = process_xbrl_feed(feed_content)
-                
-                elif format_type == 'oai-pmh':
-                    feed = process_oai_pmh_feed(feed_content)
-                
-                elif format_type in ['dcat', 'schema.org']:
-                    feed = process_rdf_feed(feed_content, format_type)
-                
-                else:
-                    # Default to standard RSS/Atom processing
-                    feed = feedparser.parse(feed_content)
+                feed = None
+                try:
+                    if format_type == 'json':
+                        try:
+                            json_feed = json.loads(feed_content)
+                            if 'version' in json_feed and json_feed.get('version', '').startswith('https://jsonfeed.org/version/'):
+                                feed = process_json_feed(json_feed)
+                        except json.JSONDecodeError as e:
+                            logging.error(f"JSON decode error for feed {feed_url}: {e}")
+                            continue
+                    
+                    elif format_type == 'sitemap':
+                        feed = process_sitemap(feed_content)
+                    
+                    elif format_type == 'opml':
+                        feed = process_opml(feed_content)
+                    
+                    elif format_type == 'podcast':
+                        feed = process_podcast_feed(feed_content)
+                    
+                    elif format_type in ['newsml', 'niftml', 'sportsml']:
+                        feed = process_newsml_feed(feed_content, format_type)
+                    
+                    elif format_type == 'xbrl':
+                        feed = process_xbrl_feed(feed_content)
+                    
+                    elif format_type == 'oai-pmh':
+                        feed = process_oai_pmh_feed(feed_content)
+                    
+                    elif format_type in ['dcat', 'schema.org']:
+                        feed = process_rdf_feed(feed_content, format_type)
+                    
+                    else:
+                        # Default to standard RSS/Atom processing
+                        feed = feedparser.parse(feed_content)
+
+                except Exception as e:
+                    logging.error(f"Error processing feed content for {feed_url}: {e}")
+                    continue
+
+                if not feed or not hasattr(feed, 'entries'):
+                    logging.warning(f"Invalid feed structure for {feed_url}")
+                    continue
 
                 # Get feed title for source info
                 feed_title = feed.get('feed', {}).get('title', get_domain_from_url(feed_url))
 
                 for entry in feed.entries:
-                    published_time = None
+                    try:
+                        published_time = None
 
-                    # Try multiple date fields with fallbacks
-                    if 'published_parsed' in entry and entry.published_parsed:
-                        published_time = time.mktime(entry.published_parsed)
-                    elif 'updated_parsed' in entry and entry.updated_parsed:
-                        published_time = time.mktime(entry.updated_parsed)
-                    elif 'created_parsed' in entry and entry.created_parsed:
-                        published_time = time.mktime(entry.created_parsed)
-                    else:
-                        # Try parsing date from string fields
-                        date_fields = ['published', 'updated', 'created', 'date', 'dc:date']
-                        parsed_date = None
-
-                        for field in date_fields:
-                            if field in entry and entry[field]:
-                                try:
-                                    # Try different date formats
-                                    date_formats = [
-                                        '%a, %d %b %Y %H:%M:%S %z',  # RFC 822
-                                        '%a, %d %b %Y %H:%M:%S %Z',  # RFC 822 with timezone name
-                                        '%Y-%m-%dT%H:%M:%S%z',       # ISO 8601
-                                        '%Y-%m-%dT%H:%M:%SZ',        # ISO 8601 UTC
-                                        '%Y-%m-%dT%H:%M:%S',         # ISO 8601 without timezone
-                                        '%Y-%m-%d %H:%M:%S',         # Simple datetime
-                                        '%Y-%m-%d',                  # Simple date
-                                        '%d %b %Y',                  # ESMA format (e.g., "07 May 2025")
-                                    ]
-
-                                    # Special handling for ESMA feed
-                                    if 'esma.europa.eu' in feed_url:
-                                        # Try to extract date from HTML time element
-                                        if 'description' in entry:
-                                            soup = BeautifulSoup(entry.description, 'html.parser')
-                                            time_elem = soup.find('time')
-                                            if time_elem and 'datetime' in time_elem.attrs:
-                                                try:
-                                                    parsed_date = datetime.fromisoformat(time_elem['datetime'].replace('Z', '+00:00'))
-                                                    published_time = time.mktime(parsed_date.timetuple())
-                                                    break
-                                                except (ValueError, AttributeError) as e:
-                                                    logging.error(f"Failed to parse ESMA datetime: {e}")
-
-                                    # Try standard date formats
-                                    for fmt in date_formats:
-                                        try:
-                                            parsed_date = datetime.strptime(entry[field], fmt)
-                                            break
-                                        except ValueError:
-                                            continue
-
-                                    if parsed_date:
+                        # Try multiple date fields with fallbacks
+                        if 'published_parsed' in entry and entry.published_parsed:
+                            published_time = time.mktime(entry.published_parsed)
+                        elif 'updated_parsed' in entry and entry.updated_parsed:
+                            published_time = time.mktime(entry.updated_parsed)
+                        elif 'created_parsed' in entry and entry.created_parsed:
+                            published_time = time.mktime(entry.created_parsed)
+                        else:
+                            # Try parsing date from string fields
+                            date_fields = ['published', 'updated', 'created', 'date', 'dc:date']
+                            for field in date_fields:
+                                if field in entry:
+                                    try:
+                                        parsed_date = parse(entry[field])
                                         published_time = time.mktime(parsed_date.timetuple())
                                         break
-
-                                except Exception as e:
-                                    logging.error(f"Failed to parse date from {field}: {e}")
+                                    except (ValueError, TypeError):
+                                        continue
 
                         if not published_time:
                             logging.warning(f"No timestamp found for article: {entry.get('title', 'No Title')}. Using current time.")
                             published_time = now  # Use current time as fallback
 
-                    # Keep articles within the past 24 hours
-                    if (now - published_time) <= TIME_THRESHOLD:
-                        # Generate a unique ID for this article
-                        title = entry.get("title", "").strip()
-                        link = entry.get("link", "").strip()
-                        article_id = generate_article_id(title, link)
+                        # Keep articles within the past 24 hours
+                        if (now - published_time) <= TIME_THRESHOLD:
+                            # Generate a unique ID for this article
+                            title = entry.get("title", "").strip()
+                            link = entry.get("link", "").strip()
+                            article_id = generate_article_id(title, link)
 
-                        # Only add if we haven't seen this article before
-                        if article_id not in unique_article_ids:
-                            unique_article_ids.add(article_id)
-                            
-                            # Normalize the entry based on its format type
-                            normalized_entry = normalize_feed_entry(entry, format_type)
-                            
-                            # Add article ID and source info
-                            normalized_entry['article_id'] = article_id
-                            normalized_entry['source_info'] = {
-                                'title': feed_title,
-                                'url': feed_url,
-                                'domain': get_domain_from_url(feed_url)
-                            }
-                            
-                            entries.append(normalized_entry)
+                            # Only add if we haven't seen this article before
+                            if article_id not in unique_article_ids:
+                                unique_article_ids.add(article_id)
+                                
+                                # Normalize the entry based on its format type
+                                normalized_entry = normalize_feed_entry(entry, format_type)
+                                
+                                # Add article ID and source info
+                                normalized_entry['article_id'] = article_id
+                                normalized_entry['source_info'] = {
+                                    'title': feed_title,
+                                    'url': feed_url,
+                                    'domain': get_domain_from_url(feed_url)
+                                }
+                                
+                                entries.append(normalized_entry)
 
-                logging.info(f"Fetched from feed: {feed_url}")
-                print(f"Fetched from feed: {feed_url}")
+                    except Exception as e:
+                        logging.error(f"Error processing entry in feed {feed_url}: {e}")
+                        continue
+
+                logging.info(f"Successfully processed feed: {feed_url}")
+                print(f"Successfully processed feed: {feed_url}")
 
                 # Add delay between feeds
                 time.sleep(2)
 
             except Exception as e:
-                logging.error(f"Unexpected error processing feed {feed_url}: {e}")
+                logging.error(f"Unexpected error processing feed {feed_url}: {e}", exc_info=True)
                 print(f"Unexpected error processing feed {feed_url}: {e}")
+                continue
 
-    logging.info(f"Total unique articles fetched within 24 hours: {len(entries)}")
-    print(f"Total unique articles fetched within 24 hours: {len(entries)}")
     return entries
 
 def filter_rss_entries(entries):

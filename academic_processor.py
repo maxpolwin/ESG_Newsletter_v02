@@ -654,7 +654,7 @@ def filter_duplicate_articles(papers, history):
     return filtered_papers
 
 
-def process_academic_papers(days_lookback=3, process_all=True): # changed from process_all=False to process_all=True
+def process_academic_papers(days_lookback=3, process_all=False): # changed from process_all=False to process_all=True
 
     """
     Process academic papers for the newsletter.
@@ -697,7 +697,7 @@ def process_academic_papers(days_lookback=3, process_all=True): # changed from p
     # Determine which keywords to process
     if not process_all:
         # Limit to 10 keywords to avoid excessive API calls
-        keywords_to_process = keywords_list[:10] if len(keywords_list) > 10 else keywords_list
+        keywords_to_process = keywords_list[:1] if len(keywords_list) > 10 else keywords_list #limit to 1 keyword
         logging.info(f"Processing {len(keywords_to_process)} keywords (limited to 10)")
         debug_print(f"\nProcessing {len(keywords_to_process)} keywords (limited to 10)", 1)
     else:
@@ -799,7 +799,7 @@ if __name__ == "__main__":
 
     try:
         # Default to processing just a subset of keywords when running as a standalone script
-        process_all_keywords = True #changed from False to True
+        process_all_keywords = False #changed from False to True
         days_to_look_back = 3  # Default to 1 day (24 hours)
 
 
