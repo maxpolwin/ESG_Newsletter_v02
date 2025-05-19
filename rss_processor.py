@@ -13,6 +13,7 @@ import feedparser
 import time
 import logging
 import requests
+import sys
 from bs4 import BeautifulSoup
 from collections import Counter
 import random
@@ -943,18 +944,21 @@ def get_custom_headers(feed_url):
         'Accept': 'application/rss+xml,application/xml;q=0.9,*/*;q=0.8',
     }
     
+    # Extract domain from feed URL
+    domain = urlparse(feed_url).netloc
+    
     # Add specific headers for problematic feeds
-    if 'bis.org' in feed_url:
+    if 'bis.org' in domain:
         headers.update({
             'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
             'X-Requested-With': 'XMLHttpRequest'
         })
-    elif 'morganstanley.com' in feed_url:
+    elif 'morganstanley.com' in domain:
         headers.update({
             'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
             'X-Requested-With': 'XMLHttpRequest'
         })
-    elif 'think.ing.com' in feed_url:
+    elif 'think.ing.com' in domain:
         headers.update({
             "Referer": "https://www.reuters.com/",
             "Origin": "https://www.reuters.com"
@@ -1384,7 +1388,7 @@ def fetch_feed_with_retry(feed_url):
                         return content, format_type
 
             # If we suspect Cloudflare protection and haven't tried bypassing it yet
-            if attempt > 3 and USE_BROWSER_AUTOMATION and not cloudflare_tried and ('cloudflare' in feed_url.lower() or any('cloudflare' in str(e).lower() for e in problematic_feeds.get(feed_url, []))):
+            if attempt > 3 and USE_BROWSER_AUTOMATION and not cloudflare_tried and ('cloudflare' in domain.lower() or any('cloudflare' in str(e).lower() for e in problematic_feeds.get(feed_url, []))):
                 cloudflare_tried = True
                 logging.info(f"Trying to bypass Cloudflare protection for feed: {feed_url}")
                 cf_result = bypass_cloudflare(feed_url)
@@ -1803,7 +1807,7 @@ def fetch_rss_entries(feeds_to_process=None):
                         published_time = time.mktime(entry.created_parsed)
                     else:
                         # Try parsing date from string fields
-                        date_fields = ['published', 'updated', 'created', 'date']
+                        date_fields = ['published', 'updated', 'created', 'date', 'dc:date']
                         parsed_date = None
 
                         for field in date_fields:
@@ -1818,8 +1822,24 @@ def fetch_rss_entries(feeds_to_process=None):
                                         '%Y-%m-%dT%H:%M:%S',         # ISO 8601 without timezone
                                         '%Y-%m-%d %H:%M:%S',         # Simple datetime
                                         '%Y-%m-%d',                  # Simple date
+                                        '%d %b %Y',                  # ESMA format (e.g., "07 May 2025")
                                     ]
 
+                                    # Special handling for ESMA feed
+                                    if 'esma.europa.eu' in feed_url:
+                                        # Try to extract date from HTML time element
+                                        if 'description' in entry:
+                                            soup = BeautifulSoup(entry.description, 'html.parser')
+                                            time_elem = soup.find('time')
+                                            if time_elem and 'datetime' in time_elem.attrs:
+                                                try:
+                                                    parsed_date = datetime.fromisoformat(time_elem['datetime'].replace('Z', '+00:00'))
+                                                    published_time = time.mktime(parsed_date.timetuple())
+                                                    break
+                                                except (ValueError, AttributeError) as e:
+                                                    logging.error(f"Failed to parse ESMA datetime: {e}")
+
+                                    # Try standard date formats
                                     for fmt in date_formats:
                                         try:
                                             parsed_date = datetime.strptime(entry[field], fmt)
@@ -2116,7 +2136,12 @@ def register_custom_namespaces():
         'xbrl': 'http://www.xbrl.org/2003/instance',
         'oai-pmh': 'http://www.openarchives.org/OAI/2.0/',
         'dcat': 'http://www.w3.org/ns/dcat#',
-        'schema': 'http://schema.org/'
+        'schema': 'http://schema.org/',
+        # Add missing namespaces for ING Think feed
+        'atom': 'http://www.w3.org/2005/Atom',
+        'sy': 'http://purl.org/rss/1.0/modules/syndication/',
+        'admin': 'http://webns.net/mvcb/',
+        'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
     }
     
     for prefix, uri in namespaces.items():
