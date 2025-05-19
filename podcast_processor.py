@@ -548,7 +548,7 @@ def process_podcasts(
     languages: List[str] = None,
     hours_ago: int = 24,
     use_parallel: bool = True,
-    process_all: bool = False,  
+    process_all: bool = True, #To process all keywords  
     keyword_limit: int = 3
 ) -> Tuple[List[Dict], Counter]:
     """
