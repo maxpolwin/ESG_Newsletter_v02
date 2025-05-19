@@ -588,8 +588,10 @@ RSS_FEEDS = [
     "https://www.bancaditalia.it/util/index.rss.html?lingua=en",
     "https://bsky.app/profile/did:plc:o3kyugmaw3xhfb5mwx365cvu/rss",
     "https://bsky.app/profile/did:plc:icmgbi2h7mwmbojmifv7a7hp/rss",
-    "https://www.weareeurope.group/blog/blog-de-l-association-2/feed"
-
+    "https://www.weareeurope.group/blog/blog-de-l-association-2/feed",
+    "https://www.cisl.cam.ac.uk/news/feed/aggregator/RSS",
+    "https://fra.europa.eu/en/publications-and-resources/publications.rss.xml",
+    "https://www.lemonde.fr/en/rss/une.xml"
 
 
     # More feeds can be added here
