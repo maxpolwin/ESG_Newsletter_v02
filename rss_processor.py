@@ -1788,32 +1788,23 @@ def fetch_rss_entries(feeds_to_process=None):
                         except json.JSONDecodeError as e:
                             logging.error(f"JSON decode error for feed {feed_url}: {e}")
                             continue
-                    
                     elif format_type == 'sitemap':
                         feed = process_sitemap(feed_content)
-                    
                     elif format_type == 'opml':
                         feed = process_opml(feed_content)
-                    
                     elif format_type == 'podcast':
                         feed = process_podcast_feed(feed_content)
-                    
                     elif format_type in ['newsml', 'niftml', 'sportsml']:
                         feed = process_newsml_feed(feed_content, format_type)
-                    
                     elif format_type == 'xbrl':
                         feed = process_xbrl_feed(feed_content)
-                    
                     elif format_type == 'oai-pmh':
                         feed = process_oai_pmh_feed(feed_content)
-                    
                     elif format_type in ['dcat', 'schema.org']:
                         feed = process_rdf_feed(feed_content, format_type)
-                    
                     else:
                         # Default to standard RSS/Atom processing
                         feed = feedparser.parse(feed_content)
-
                 except Exception as e:
                     logging.error(f"Error processing feed content for {feed_url}: {e}")
                     continue
@@ -1848,9 +1839,9 @@ def fetch_rss_entries(feeds_to_process=None):
                                     except (ValueError, TypeError):
                                         continue
 
-                        if not published_time:
-                            logging.warning(f"No timestamp found for article: {entry.get('title', 'No Title')}. Using current time.")
-                            published_time = now  # Use current time as fallback
+                            if not published_time:
+                                logging.warning(f"No timestamp found for article: {entry.get('title', 'No Title')}. Using current time.")
+                                published_time = now  # Use current time as fallback
 
                         # Keep articles within the past 24 hours
                         if (now - published_time) <= TIME_THRESHOLD:

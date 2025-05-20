@@ -654,7 +654,7 @@ def filter_duplicate_articles(papers, history):
     return filtered_papers
 
 
-def process_academic_papers(days_lookback=3, process_all=False): # changed from process_all=False to process_all=True
+def process_academic_papers(days_lookback=3, process_all=True): # changed from process_all=False to process_all=True
 
     """
     Process academic papers for the newsletter.
@@ -799,7 +799,7 @@ if __name__ == "__main__":
 
     try:
         # Default to processing just a subset of keywords when running as a standalone script
-        process_all_keywords = False #changed from False to True
+        process_all_keywords = True #changed from False to True
         days_to_look_back = 3  # Default to 1 day (24 hours)
 
 

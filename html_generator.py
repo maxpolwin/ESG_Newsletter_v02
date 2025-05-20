@@ -317,7 +317,8 @@ def generate_html(articles, keyword_counts):
     academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic" or is_sciencedirect_article(a))
     podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")  
     bluesky_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "bluesky")
-    logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {podcast_count} podcasts, {academic_count} academic papers, {bluesky_count} Bluesky posts")
+    youtube_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "youtube")
+    logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {podcast_count} podcasts, {academic_count} academic papers, {bluesky_count} Bluesky posts, {youtube_count} YouTube videos")
 
     # Generate the executive summary - use the enhanced version
     executive_summary = enhanced_executive_summary(articles)
@@ -619,6 +620,65 @@ def generate_html(articles, keyword_counts):
             elif source_type == "podcast":
                 podcast_entry = generate_podcast_section([article])
                 article_entry = podcast_entry
+            elif source_type == "youtube":
+                # Special handling for YouTube videos
+                link = ensure_str(article.get("link", ""))
+                snippet = ensure_str(article.get("snippet", ""))
+                keywords = article.get("keywords", [])
+                channel_title = ensure_str(article.get("channel_title", ""))
+                duration = ensure_str(article.get("duration", ""))
+                view_count = ensure_str(article.get("view_count", ""))
+                thumbnail_url = ensure_str(article.get("thumbnail_url", ""))
+                pub_date = ensure_str(article.get("pub_date", ""))
+
+                # Build the keywords line
+                keywords_html = ""
+                for kw in keywords:
+                    keywords_html += f"<span style='display: inline-block; background-color: #BDD7D6; padding: 2px 5px; margin: 2px; border-radius: 3px;'>{ensure_str(kw)}</span> "
+
+                article_entry = f"""
+                <tr>
+                    <td style="padding: 0 0 20px 0;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #FFF0F0; border-radius: 8px; border-left: 4px solid #FF0000;">
+                            <tr>
+                                <td style="padding: 15px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                                        <h3 style="margin: 0; font-family: Arial, sans-serif; font-size: 16px;">
+                                            <a href="{link}" style="color: #FF0000; text-decoration: none;">🎥 {title}</a>
+                                        </h3>
+                                        <span style="display: inline-block; background-color: #FFE4E4; color: #FF0000;
+                                              padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;">YouTube</span>
+                                    </div>
+                                    <div style="display: flex; margin: 10px 0;">
+                                        <div style="flex: 0 0 120px; margin-right: 15px;">
+                                            <a href="{link}">
+                                                <img src="{thumbnail_url}" alt="Video thumbnail" style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;">
+                                            </a>
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <div style="font-family: Arial, sans-serif; font-size: 13px; color: #666; margin-bottom: 5px;">
+                                                {channel_title}
+                                            </div>
+                                            <div style="font-family: Arial, sans-serif; font-size: 13px; color: #666; margin-bottom: 5px;">
+                                                Duration: {duration} | Views: {view_count}
+                                            </div>
+                                            <div style="font-family: Arial, sans-serif; font-size: 13px; color: #666;">
+                                                Published: {pub_date}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
+                                        {snippet}
+                                    </div>
+                                    <div style="font-family: Arial, sans-serif; font-size: 12px; color: #5E9E9A;">
+                                        Keywords: {keywords_html}
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                """
 
             article_entries_html.append(article_entry)
 
