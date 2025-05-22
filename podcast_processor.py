@@ -44,7 +44,7 @@ from utils import normalize_text, generate_article_id
 print("[DEBUG] After importing config/utils")
 
 # FIXED: Load keywords using the get_keywords function
-KEYWORDS, NEGATIVE_KEYWORDS = get_keywords()
+KEYWORDS, NEGATIVE_KEYWORDS, YOUTUBE_KEYWORDS, YOUTUBE_NEGATIVE_KEYWORDS = get_keywords()
 print(f"[DEBUG] Successfully loaded {len(KEYWORDS)} keywords and {len(NEGATIVE_KEYWORDS)} negative keywords")
 
 # Replace the dotenv import with this function
@@ -75,21 +75,25 @@ RETRY_ATTEMPTS = 5
 BASE_DELAY = 1  # Initial delay for exponential backoff
 
 # Language settings
-SUPPORTED_LANGUAGES = ["en", "de", "es"]
+SUPPORTED_LANGUAGES = ["en", "de", "es", "fr"]
 MARKET_LANGUAGE_MAP = {
     "US": "en",
     "GB": "en",
     "DE": "de",
     "AT": "de",
     "CH": "de",
-    "ES": "es"
+    "ES": "es",
+    "FR": "fr",
+    "BE": "fr",
+    "CA": "en"  # English for Canada
 }
 
 # Define markets to search in for each language
 LANGUAGE_MARKETS = {
     "en": ["US", "GB", "CA", "AU", "NZ"],
     "de": ["DE", "AT", "CH"],
-    "es": ["ES"]
+    "es": ["ES"],
+    "fr": ["FR", "BE"]
 }
 
 # Rate limiting settings
@@ -313,11 +317,16 @@ def search_podcasts(
         data = response.json()
         episodes = data.get("episodes", {}).get("items", [])
         
+        # Add market information to each episode
+        for episode in episodes:
+            episode["market"] = market
+        
         # Debug the response
         print(f"[DEBUG] Response data keys: {list(data.keys())}")
         print(f"[DEBUG] Episodes found: {len(episodes)}")
         if episodes:
             print(f"[DEBUG] First episode title: {episodes[0].get('name', 'No name')}")
+            print(f"[DEBUG] First episode languages: {episodes[0].get('languages', [])}")
         
         logging.debug(f"Found {len(episodes)} episodes for keyword '{keyword}' in market {market}")
         return episodes
@@ -540,6 +549,31 @@ def process_podcasts_parallel(keywords: List[str], languages: List[str]) -> List
     print("[DEBUG] Exiting process_podcasts_parallel")
     return all_results
 
+def filter_podcasts_by_language(podcasts: List[Dict], allowed_languages: List[str]) -> List[Dict]:
+    """
+    Filter podcasts by their languages field and market.
+    
+    Args:
+        podcasts (List[Dict]): List of podcast episodes
+        allowed_languages (List[str]): List of allowed language codes
+        
+    Returns:
+        List[Dict]: Filtered list of podcasts
+    """
+    filtered_podcasts = []
+    for podcast in podcasts:
+        # Get languages from the podcast data (Spotify API provides this as a list)
+        podcast_languages = podcast.get("languages", [])
+        market = podcast.get("market", "")
+        
+        # Check if any of the podcast's languages are in our allowed languages
+        # and if the market matches our language market mapping
+        if (any(lang.lower() in allowed_languages for lang in podcast_languages) and
+            MARKET_LANGUAGE_MAP.get(market, "").lower() in allowed_languages):
+            filtered_podcasts.append(podcast)
+            
+    return filtered_podcasts
+
 def process_podcasts(
     client_id: str = None,
     client_secret: str = None,
@@ -548,7 +582,7 @@ def process_podcasts(
     languages: List[str] = None,
     hours_ago: int = 24,
     use_parallel: bool = True,
-    process_all: bool = True, #To process all keywords  
+    process_all: bool = True,
     keyword_limit: int = 3
 ) -> Tuple[List[Dict], Counter]:
     """
@@ -665,9 +699,14 @@ def process_podcasts(
         
         print(f"After deduplication: {len(unique_podcasts)} unique episodes")
         
+        # Filter by language
+        print("Filtering by language...")
+        language_filtered_podcasts = filter_podcasts_by_language(unique_podcasts, languages)
+        print(f"Language-filtered episodes: {len(language_filtered_podcasts)}")
+        
         # Filter by date
         print(f"Filtering for episodes from last {hours_ago} hours...")
-        recent_podcasts = filter_podcasts_by_date(unique_podcasts, hours_ago)
+        recent_podcasts = filter_podcasts_by_date(language_filtered_podcasts, hours_ago)
         print(f"Recent episodes: {len(recent_podcasts)}")
         
         # Filter by keywords

@@ -5,6 +5,7 @@ A comprehensive system for collecting, analyzing, and distributing newsletters.
 This system processes both RSS feeds and email newsletters, searching for
 specified keywords, and generates an HTML report that can be emailed.
 
+
 This is the main entry point that coordinates all modules of the system.
 
 Components (now separated into modules):

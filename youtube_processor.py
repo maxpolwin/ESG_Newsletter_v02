@@ -12,6 +12,7 @@ Features:
 - Parallel processing for performance
 - Informative progress logging
 - Seamless integration with ESG_Newsletter
+- Limited to 30 keywords per day from dedicated YouTube keyword set
 """
 
 import os
@@ -32,6 +33,11 @@ import random
 # Import configuration and utilities
 from keywords_config import get_keywords
 from utils import normalize_text, generate_article_id
+from youtube_logs import (
+    api_logger, error_logger, debug_logger,
+    log_api_request, log_api_error, log_api_rate_limit,
+    log_api_success, log_debug_info
+)
 
 # Load environment variables from .env file
 def load_env_file():
@@ -53,7 +59,7 @@ def load_env_file():
 load_env_file()
 
 # Load keywords
-KEYWORDS, NEGATIVE_KEYWORDS = get_keywords()
+_, _, YOUTUBE_KEYWORDS, YOUTUBE_NEGATIVE_KEYWORDS = get_keywords()
 
 # YouTube API endpoints
 SEARCH_ENDPOINT = "https://www.googleapis.com/youtube/v3/search"
@@ -61,7 +67,7 @@ VIDEO_ENDPOINT = "https://www.googleapis.com/youtube/v3/videos"
 
 # Constants for request handling
 DEFAULT_TIMEOUT = 30
-RETRY_ATTEMPTS = 5
+RETRY_ATTEMPTS = 2
 BASE_DELAY = 1  # Initial delay for exponential backoff
 
 # Rate limiting settings
@@ -69,10 +75,11 @@ DAILY_QUOTA = 10000  # YouTube API daily quota
 SEARCH_COST = 100    # Cost per search request
 VIDEO_COST = 1       # Cost per video details request
 SAFE_QUOTA_LIMIT = 0.8  # Use only 80% of daily quota to be safe
+MAX_KEYWORDS_PER_DAY = 30  # Maximum number of keywords to process per day
 
 # Calculate safe request limits
 MAX_SEARCHES_PER_HOUR = int((DAILY_QUOTA * SAFE_QUOTA_LIMIT) / (24 * SEARCH_COST))
-MIN_REQUEST_INTERVAL = 3600 / MAX_SEARCHES_PER_HOUR  # Minimum seconds between requests
+MIN_REQUEST_INTERVAL = 5 / MAX_SEARCHES_PER_HOUR  # Minimum seconds between requests
 
 class YouTubeAPIError(Exception):
     """Exception raised for YouTube API errors."""
@@ -159,13 +166,19 @@ def verify_api_key(api_key: str) -> bool:
             "maxResults": 1
         }
         
+        logging.info(f"Verifying YouTube API key with request to {SEARCH_ENDPOINT}")
+        logging.debug(f"Request params: {params}")
+        
         response = requests.get(
             SEARCH_ENDPOINT,
             params=params,
             timeout=DEFAULT_TIMEOUT
         )
         
+        logging.info(f"API key verification response status: {response.status_code}")
+        
         if response.status_code == 200:
+            logging.info("API key verification successful")
             return True
             
         error_data = response.json()
@@ -173,28 +186,28 @@ def verify_api_key(api_key: str) -> bool:
         error_code = error_data.get('error', {}).get('code', response.status_code)
         error_reason = error_data.get('error', {}).get('errors', [{}])[0].get('reason', 'unknown')
         
-        print(f"\nAPI Key Verification Failed:")
-        print(f"Error Code: {error_code}")
-        print(f"Error Message: {error_message}")
-        print(f"Error Reason: {error_reason}")
+        logging.error(f"API Key Verification Failed:")
+        logging.error(f"Error Code: {error_code}")
+        logging.error(f"Error Message: {error_message}")
+        logging.error(f"Error Reason: {error_reason}")
         
         if error_reason == 'quotaExceeded':
-            print("\nThe API key has exceeded its quota. Please try again later or use a different API key.")
+            logging.error("The API key has exceeded its quota. Please try again later or use a different API key.")
         elif error_reason == 'invalid':
-            print("\nThe API key is invalid. Please check your API key in the .env file.")
+            logging.error("The API key is invalid. Please check your API key in the .env file.")
         elif error_reason == 'forbidden':
-            print("\nThe API key doesn't have access to the YouTube Data API v3.")
-            print("Please enable the YouTube Data API v3 in your Google Cloud Console:")
-            print("1. Go to https://console.cloud.google.com")
-            print("2. Select your project")
-            print("3. Go to 'APIs & Services' > 'Library'")
-            print("4. Search for 'YouTube Data API v3'")
-            print("5. Click 'Enable'")
+            logging.error("The API key doesn't have access to the YouTube Data API v3.")
+            logging.error("Please enable the YouTube Data API v3 in your Google Cloud Console:")
+            logging.error("1. Go to https://console.cloud.google.com")
+            logging.error("2. Select your project")
+            logging.error("3. Go to 'APIs & Services' > 'Library'")
+            logging.error("4. Search for 'YouTube Data API v3'")
+            logging.error("5. Click 'Enable'")
         
         return False
         
     except Exception as e:
-        print(f"\nError verifying API key: {str(e)}")
+        logging.error(f"Error verifying API key: {str(e)}", exc_info=True)
         return False
 
 def get_api_key() -> str:
@@ -257,121 +270,295 @@ def search_videos(
             "order": "date"
         }
         
-        # Make API request
+        if published_after:
+            params["publishedAfter"] = published_after.strftime("%Y-%m-%dT%H:%M:%SZ")
+        
+        start_time = time.time()
+        log_api_request(
+            api_logger,
+            "GET",
+            SEARCH_ENDPOINT,
+            params,
+            0,  # Status will be updated after request
+            0   # Response time will be updated after request
+        )
+        
         response = requests.get(
             SEARCH_ENDPOINT,
             params=params,
             timeout=DEFAULT_TIMEOUT
         )
         
-        # Check for API errors
+        response_time = time.time() - start_time
+        
         if response.status_code != 200:
             error_data = response.json()
             error_message = error_data.get('error', {}).get('message', 'Unknown error')
             error_code = error_data.get('error', {}).get('code', response.status_code)
             error_reason = error_data.get('error', {}).get('errors', [{}])[0].get('reason', 'unknown')
+            
+            log_api_error(
+                error_logger,
+                f"YouTube API Error {error_code}",
+                error_message,
+                {"params": params, "reason": error_reason},
+                None
+            )
+            
+            if error_reason == 'quotaExceeded':
+                log_api_rate_limit(
+                    error_logger,
+                    quota_used=10000,  # This should be updated with actual quota info if available
+                    quota_remaining=0,
+                    reset_time=datetime.datetime.now() + datetime.timedelta(days=1)
+                )
+            
             raise YouTubeAPIError(f"API Error {error_code}: {error_message} (Reason: {error_reason})")
         
         data = response.json()
         items = data.get("items", [])
         
-        # Filter by date after getting results
-        if published_after:
-            filtered_items = []
-            for item in items:
-                try:
-                    published_at = datetime.datetime.fromisoformat(
-                        item["snippet"]["publishedAt"].replace("Z", "+00:00")
-                    )
-                    if published_at >= published_after:
-                        filtered_items.append(item)
-                except (KeyError, ValueError) as e:
-                    logging.debug(f"Error parsing video date: {str(e)}")
-                    continue
-            items = filtered_items
+        log_api_success(
+            api_logger,
+            "Video Search",
+            {
+                "keyword": keyword,
+                "videos_found": len(items),
+                "response_time": response_time
+            }
+        )
         
         return items
         
     except requests.exceptions.RequestException as e:
-        logging.error(f"YouTube API request failed: {str(e)}")
+        log_api_error(
+            error_logger,
+            "Request Exception",
+            str(e),
+            {"endpoint": SEARCH_ENDPOINT, "params": params},
+            e
+        )
         raise YouTubeAPIError(f"API request failed: {str(e)}")
+    except Exception as e:
+        log_api_error(
+            error_logger,
+            "Unexpected Error",
+            str(e),
+            {"endpoint": SEARCH_ENDPOINT, "params": params},
+            e
+        )
+        raise
+
+def filter_videos_by_keywords(
+    videos: List[Dict],
+    positive_keywords: List[str],
+    negative_keywords: List[str]
+) -> Tuple[List[Dict], Counter]:
+    """
+    Filter videos based on positive and negative keywords.
+    
+    Args:
+        videos (List[Dict]): List of video dictionaries to filter
+        positive_keywords (List[str]): Keywords that should be present
+        negative_keywords (List[str]): Keywords that should not be present
+        
+    Returns:
+        Tuple[List[Dict], Counter]: Filtered videos and keyword frequency counter
+    """
+    filtered_videos = []
+    keyword_counts = Counter()
+    
+    for video in videos:
+        # Get video title and description
+        title = video.get('snippet', {}).get('title', '').lower()
+        description = video.get('snippet', {}).get('description', '').lower()
+        
+        # Check for negative keywords first
+        has_negative_keyword = any(
+            keyword.lower() in title or keyword.lower() in description
+            for keyword in negative_keywords
+        )
+        
+        if has_negative_keyword:
+            continue
+            
+        # Check for positive keywords
+        matched_keywords = []
+        for keyword in positive_keywords:
+            if keyword.lower() in title or keyword.lower() in description:
+                matched_keywords.append(keyword)
+                keyword_counts[keyword] += 1
+        
+        # Only include videos that match at least one positive keyword
+        if matched_keywords:
+            filtered_videos.append(video)
+    
+    return filtered_videos, keyword_counts
+
+def enrich_video_data(video: Dict) -> Optional[Dict]:
+    """
+    Enrich video data with additional formatted information.
+    
+    Args:
+        video (Dict): Raw video data from YouTube API
+        
+    Returns:
+        Optional[Dict]: Enriched video data or None if enrichment fails
+    """
+    try:
+        # Extract basic information
+        snippet = video.get('snippet', {})
+        
+        # Create enriched video dictionary
+        enriched = {
+            'video_id': video.get('id', {}).get('videoId'),
+            'title': snippet.get('title', ''),
+            'description': snippet.get('description', ''),
+            'channel_title': snippet.get('channelTitle', ''),
+            'channel_id': snippet.get('channelId', ''),
+            'pub_date': snippet.get('publishedAt', ''),
+            'thumbnail_url': snippet.get('thumbnails', {}).get('high', {}).get('url', ''),
+            'link': f"https://www.youtube.com/watch?v={video.get('id', {}).get('videoId')}"
+        }
+        
+        # Try to get additional video details if available
+        if 'contentDetails' in video:
+            duration = video['contentDetails'].get('duration', '')
+            # Convert ISO 8601 duration to readable format
+            # Example: PT1H2M10S -> 1:02:10
+            if duration:
+                hours = 0
+                minutes = 0
+                seconds = 0
+                
+                # Parse duration string
+                if 'H' in duration:
+                    hours = int(duration.split('H')[0].replace('PT', ''))
+                if 'M' in duration:
+                    minutes = int(duration.split('M')[0].split('H')[-1])
+                if 'S' in duration:
+                    seconds = int(duration.split('S')[0].split('M')[-1])
+                
+                # Format duration
+                if hours > 0:
+                    enriched['duration'] = f"{hours}:{minutes:02d}:{seconds:02d}"
+                else:
+                    enriched['duration'] = f"{minutes}:{seconds:02d}"
+        
+        # Add view count if available
+        if 'statistics' in video:
+            enriched['view_count'] = int(video['statistics'].get('viewCount', 0))
+        
+        # Format publication date
+        if enriched['pub_date']:
+            try:
+                pub_date = datetime.datetime.fromisoformat(
+                    enriched['pub_date'].replace('Z', '+00:00')
+                )
+                enriched['pub_date'] = pub_date.strftime('%Y-%m-%d %H:%M:%S UTC')
+            except (ValueError, TypeError):
+                pass
+        
+        return enriched
+        
+    except Exception as e:
+        logging.error(f"Error enriching video data: {str(e)}")
+        return None
 
 def process_videos(
     keywords: List[str] = None,
     negative_keywords: List[str] = None,
     hours_ago: int = 24,
     use_parallel: bool = True,
-    process_all: bool = True,
-    keyword_limit: int = 33  # Changed default to 33 to match hourly quota
+    process_all: bool = False,
+    keyword_limit: int = MAX_KEYWORDS_PER_DAY
 ) -> Tuple[List[Dict], Counter]:
     """
     Process videos from YouTube API.
     
     Args:
-        keywords (List[str], optional): List of keywords to search for
-        negative_keywords (List[str], optional): List of negative keywords to exclude
+        keywords (List[str], optional): List of keywords to search for. If None, uses YOUTUBE_KEYWORDS
+        negative_keywords (List[str], optional): List of negative keywords to exclude. If None, uses YOUTUBE_NEGATIVE_KEYWORDS
         hours_ago (int, optional): Number of hours to look back. Defaults to 24
         use_parallel (bool, optional): Whether to use parallel processing. Defaults to True
-        process_all (bool, optional): If True, process all keywords. If False, limit to keyword_limit
-        keyword_limit (int, optional): Maximum number of keywords to process. Defaults to 33
+        process_all (bool, optional): If True, process all keywords. If False, limit to keyword_limit. Defaults to False
+        keyword_limit (int, optional): Maximum number of keywords to process. Defaults to MAX_KEYWORDS_PER_DAY
         
     Returns:
         Tuple[List[Dict], Counter]: List of enriched videos and keyword frequency counter
+        Even if processing fails, returns empty list and counter to allow main.py to continue
     """
-    # Use a fixed current date for testing
-    current_time = datetime.datetime(2024, 3, 19, 20, 34, 48, tzinfo=datetime.timezone.utc)
-    
-    # Log configuration
-    timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S")
-    print(f"\n{'='*60}")
-    print(f"YOUTUBE VIDEO PROCESSOR - {timestamp}")
-    print(f"{'='*60}")
-    
-    # Use imported keywords if none are provided
-    if keywords is None:
-        keywords = KEYWORDS
-    
-    if negative_keywords is None:
-        negative_keywords = NEGATIVE_KEYWORDS
-    
-    # Convert sets to lists if necessary
-    if isinstance(keywords, set):
-        keywords = list(keywords)
-    if isinstance(negative_keywords, set):
-        negative_keywords = list(negative_keywords)
-    
-    # Randomly select keywords if not processing all
-    if not process_all:
-        original_keyword_count = len(keywords)
-        # Set random seed for reproducibility
-        random.seed(int(current_time.timestamp()))
-        # Randomly select keywords
-        keywords = random.sample(keywords, min(keyword_limit, len(keywords)))
-        print(f"Randomly selected {len(keywords)} keywords from {original_keyword_count} total keywords")
-        logging.info(f"Randomly selected {len(keywords)} keywords from {original_keyword_count} total keywords")
-    
-    # Early validation
-    if not keywords:
-        logging.warning("No keywords provided. No videos will be returned.")
-        print("Warning: No keywords provided. No videos will be returned.")
-        return [], Counter()
-    
-    # Calculate cutoff time in UTC
-    cutoff_time = current_time - datetime.timedelta(hours=hours_ago)
-    print(f"Searching for videos published after: {cutoff_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
-    
     try:
+        # Use current date and time
+        current_time = datetime.datetime.now(datetime.timezone.utc)
+        
+        # Log configuration
+        timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"\n{'='*60}")
+        print(f"YOUTUBE VIDEO PROCESSOR - {timestamp}")
+        print(f"{'='*60}")
+        
+        # Use YouTube-specific keywords if none are provided
+        if keywords is None:
+            keywords = list(YOUTUBE_KEYWORDS)
+        
+        if negative_keywords is None:
+            negative_keywords = list(YOUTUBE_NEGATIVE_KEYWORDS)
+        
+        # Convert sets to lists if necessary
+        if isinstance(keywords, set):
+            keywords = list(keywords)
+        if isinstance(negative_keywords, set):
+            negative_keywords = list(negative_keywords)
+        
+        # Randomly select keywords if not processing all
+        if not process_all:
+            original_keyword_count = len(keywords)
+            # Set random seed for reproducibility based on current date
+            random.seed(int(current_time.date().strftime("%Y%m%d")))
+            # Randomly select keywords
+            keywords = random.sample(keywords, min(keyword_limit, len(keywords)))
+            print(f"Randomly selected {len(keywords)} keywords from {original_keyword_count} total keywords")
+            logging.info(f"Randomly selected {len(keywords)} keywords from {original_keyword_count} total keywords")
+        
+        # Early validation
+        if not keywords:
+            logging.warning("No keywords provided. No videos will be returned.")
+            print("Warning: No keywords provided. No videos will be returned.")
+            return [], Counter()
+        
+        # Calculate cutoff time in UTC
+        cutoff_time = current_time - datetime.timedelta(hours=hours_ago)
+        print(f"Searching for videos published after: {cutoff_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        
         print(f"\nSearching for videos with {len(keywords)} keywords")
         print(f"Time range: Last {hours_ago} hours")
         
         # Search for videos
         all_videos = []
+        failed_keywords = []
+        
         for keyword in keywords:
-            results = search_videos(
-                keyword=keyword,
-                published_after=cutoff_time
-            )
-            all_videos.extend(results)
+            try:
+                print(f"\nProcessing keyword: {keyword}")
+                results = search_videos(
+                    keyword=keyword,
+                    published_after=cutoff_time
+                )
+                if results:
+                    all_videos.extend(results)
+                    print(f"Found {len(results)} videos for keyword: {keyword}")
+                else:
+                    print(f"No videos found for keyword: {keyword}")
+            except Exception as e:
+                failed_keywords.append(keyword)
+                logging.error(f"Error processing keyword '{keyword}': {str(e)}")
+                print(f"Error processing keyword '{keyword}': {str(e)}")
+                continue  # Continue with next keyword
+        
+        if failed_keywords:
+            print(f"\nFailed to process {len(failed_keywords)} keywords: {', '.join(failed_keywords)}")
+            logging.warning(f"Failed to process {len(failed_keywords)} keywords: {', '.join(failed_keywords)}")
         
         print(f"Initial search results: {len(all_videos)} videos")
         
@@ -388,7 +575,7 @@ def process_videos(
         print(f"After deduplication: {len(unique_videos)} unique videos")
         
         # Filter by date (double-check)
-        recent_videos = filter_videos_by_date(unique_videos, hours_ago)
+        recent_videos = unique_videos  # Since filtering already happened in search_videos
         print(f"Recent videos: {len(recent_videos)}")
         
         # Filter by keywords
@@ -429,24 +616,27 @@ def process_videos(
         return enriched_videos, keyword_counts
         
     except Exception as e:
-        logging.error(f"Error processing videos: {str(e)}", exc_info=True)
-        print(f"Error processing videos: {str(e)}")
-        return [], Counter()
+        logging.error(f"Critical error in process_videos: {str(e)}", exc_info=True)
+        print(f"Critical error in process_videos: {str(e)}")
+        return [], Counter()  # Return empty results to allow main.py to continue
 
 if __name__ == "__main__":
     # Configure logging for standalone execution
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - %(levelname)s - %(message)s',  # Simplified format
         handlers=[
             logging.FileHandler("youtube_processor.log"),
-            logging.StreamHandler()
+            logging.StreamHandler(sys.stdout)  # Explicitly use stdout
         ]
     )
     
+    # Set root logger level to INFO
+    logging.getLogger().setLevel(logging.INFO)
+    
     # Default values
     process_all = False  # Changed default to False to use random selection
-    keyword_limit = 33  # Set to 33 to match hourly quota
+    keyword_limit = MAX_KEYWORDS_PER_DAY  # Set to MAX_KEYWORDS_PER_DAY
     hours_ago = 24
     
     # Parse command line arguments
@@ -463,7 +653,7 @@ if __name__ == "__main__":
         else:
             try:
                 # First argument can be number of keywords to process
-                keyword_limit = min(int(sys.argv[1]), 33)  # Cap at 33 keywords
+                keyword_limit = min(int(sys.argv[1]), MAX_KEYWORDS_PER_DAY)  # Cap at MAX_KEYWORDS_PER_DAY
                 print(f"Will process up to {keyword_limit} keywords")
                 
                 # Second argument can be number of days to look back
@@ -477,8 +667,8 @@ if __name__ == "__main__":
     
     # Test the module with explicit parameters
     videos, counts = process_videos(
-        keywords=KEYWORDS,
-        negative_keywords=NEGATIVE_KEYWORDS,
+        keywords=YOUTUBE_KEYWORDS,
+        negative_keywords=YOUTUBE_NEGATIVE_KEYWORDS,
         hours_ago=hours_ago,
         use_parallel=True,
         process_all=process_all,

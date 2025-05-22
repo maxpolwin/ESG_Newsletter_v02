@@ -43,7 +43,25 @@ def get_keywords():
     "BaFin warnt vor", "Application deadline", " gene ", "hyrodgen bomb", "Marisken", "trabalho", "Sustentabilidade",
     "Mariskal", "Conspiracy", "Paluten", "CRAFT ATTACK", "Sustainy ",
     "TTPP", "blyaaaaaaaaaaaaaaaaat", "detox", "Basti GHG", "Detox", "Blondie", "MM36"
-
 }
 
-    return keywords, negative_keywords
+    # YouTube-specific keywords - content containing these will be INCLUDED
+    youtube_keywords_positive = {
+        "ESG investing", "sustainable finance", "climate risk", "EU taxonomy", "CSRD",
+        "climate scenario", "green bonds", "carbon markets", "climate change finance",
+        "sustainable investing", "ESG analysis", "climate transition", "net zero finance",
+        "sustainable banking", "green finance", "climate policy", "ESG reporting",
+        "sustainable business", "ESG strategy", "sustainable economy", "Omnibus package"
+        "climate finance", "ESG metrics", "sustainable growth", "climate solutions",
+        "ESG disclosure", "sustainable development goals", "climate adaptation", "ESG integration"
+    }
+
+    # YouTube-specific negative keywords - content containing these will be EXCLUDED
+    youtube_keywords_negative = {
+        "conspiracy", "fake news", "climate hoax", "ESG scam", "sustainable scam",
+        "climate denial", "ESG fraud", "sustainable fraud", "climate conspiracy",
+        "ESG conspiracy", "sustainable conspiracy", "climate scam", "ESG hoax",
+        "sustainable hoax", "climate fraud", "ESG denial", "sustainable denial"
+    }
+
+    return keywords, negative_keywords, youtube_keywords_positive, youtube_keywords_negative

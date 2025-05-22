@@ -161,7 +161,7 @@ sys.path.insert(0, BASE_DIR)  # Add the directory to Python path
 
 try:
     from keywords_config import get_keywords
-    KEYWORDS, NEGATIVE_KEYWORDS = get_keywords()
+    KEYWORDS, NEGATIVE_KEYWORDS, YOUTUBE_KEYWORDS, YOUTUBE_NEGATIVE_KEYWORDS = get_keywords()
     logging.info(f"Successfully loaded keywords from {keywords_path}")
     print(f"Successfully loaded keywords from {keywords_path}")
 except ImportError:
@@ -437,6 +437,7 @@ RSS_FEEDS = [
     "https://www.eba.europa.eu/news-press/news/rss.xml",
     "https://www.esrb.europa.eu/rss/press.xml",
     "https://www.esrb.europa.eu/rss/pub.rss",
+    "https://jacobin.com/rss",
     "https://www.mckinsey.com/insights/rss",
     "https://www.esrb.europa.eu/rss/esrb_policy.rss",
     "https://www.esrb.europa.eu/rss/nat_policy.rss",
@@ -695,6 +696,7 @@ TRUSTED_SENDERS = [
     "mailservice@oenb.at",
     "foundationteam@economist.com",
     "publishing@email.mckinsey.com",
+    "digital@euractiv.com",
     "info@investmentofficer.com",
     "info@esgnewsalerts.net",
     "bruegel@bruegel.org",
@@ -704,6 +706,7 @@ TRUSTED_SENDERS = [
     "info@esgnewsalerts.net",
     "news@foreignaffairs.com",
     "support@iz.de",
+    "WorldBank@newsletterext.worldbank.org",
     "mediacentre@ebf.eu",
     "in.context.newsletter@jpmcib.jpmorgan.com",
     "newsletter@news.gsh.cib.natixis.com",
