@@ -48,20 +48,20 @@ def get_keywords():
     # YouTube-specific keywords - content containing these will be INCLUDED
     youtube_keywords_positive = {
         "ESG investing", "sustainable finance", "climate risk", "EU taxonomy", "CSRD",
-        "climate scenario", "green bonds", "carbon markets", "climate change finance",
-        "sustainable investing", "ESG analysis", "climate transition", "net zero finance",
+        "climate scenario", "green bonds", "climate scenario analysis", "climate change finance",
+        "sustainable investing", "ESG analysis", "climate transition", "decarboniz", 
         "sustainable banking", "green finance", "climate policy", "ESG reporting",
-        "sustainable business", "ESG strategy", "sustainable economy", "Omnibus package"
-        "climate finance", "ESG metrics", "sustainable growth", "climate solutions",
-        "ESG disclosure", "sustainable development goals", "climate adaptation", "ESG integration"
+        "ESG strategy", "sustainable economy", "Omnibus package", "CSDDD",
+        "climate finance", "ESG metrics", "climate stress test", "climate transition plan",
+        "ESG disclosure", "climate adaptation", "ESG integration"
     }
 
     # YouTube-specific negative keywords - content containing these will be EXCLUDED
     youtube_keywords_negative = {
         "conspiracy", "fake news", "climate hoax", "ESG scam", "sustainable scam",
         "climate denial", "ESG fraud", "sustainable fraud", "climate conspiracy",
-        "ESG conspiracy", "sustainable conspiracy", "climate scam", "ESG hoax",
-        "sustainable hoax", "climate fraud", "ESG denial", "sustainable denial"
+        "ESG conspiracy", "sustainable conspiracy", "climate scam", "ESG hoax", "AI-Driven",
+        "sustainable hoax", "climate fraud", "ESG denial", "sustainable denial", "fun fact"
     }
 
     return keywords, negative_keywords, youtube_keywords_positive, youtube_keywords_negative

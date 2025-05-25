@@ -481,6 +481,33 @@ def enrich_podcast_data(podcast: Dict, market: str) -> Dict:
         "duration": duration_formatted,
         "spotify_url": external_urls.get("spotify", "")
     }
+
+    # Store the content in the database
+    content_to_store = {
+        'id': podcast_id,
+        'source_type': 'podcast',
+        'title': name,
+        'content': description,
+        'url': external_urls.get("spotify", ""),
+        'date_published': release_date,
+        'source_info': {
+            'title': show_name,
+            'publisher': publisher,
+            'domain': 'spotify.com'
+        },
+        'keywords': podcast.get("matched_keywords", []),
+        'metadata': {
+            'show_name': show_name,
+            'duration_ms': duration_ms,
+            'duration_formatted': duration_formatted,
+            'language': language,
+            'market': market,
+            'publisher': publisher
+        }
+    }
+    
+    from content_storage import store_content
+    store_content(content_to_store)
     
     return enriched_data
 
@@ -573,6 +600,8 @@ def filter_podcasts_by_language(podcasts: List[Dict], allowed_languages: List[st
             filtered_podcasts.append(podcast)
             
     return filtered_podcasts
+
+from config import DEDUPLICATION_ENABLED
 
 def process_podcasts(
     client_id: str = None,
@@ -690,12 +719,14 @@ def process_podcasts(
         # Remove duplicates based on podcast ID
         seen_ids = set()
         unique_podcasts = []
-        
-        for podcast in all_podcasts:
-            podcast_id = podcast.get("id")
-            if podcast_id and podcast_id not in seen_ids:
-                seen_ids.add(podcast_id)
-                unique_podcasts.append(podcast)
+        if DEDUPLICATION_ENABLED:
+            for podcast in all_podcasts:
+                podcast_id = podcast.get("id")
+                if podcast_id and podcast_id not in seen_ids:
+                    seen_ids.add(podcast_id)
+                    unique_podcasts.append(podcast)
+        else:
+            unique_podcasts = all_podcasts  # No deduplication, keep all
         
         print(f"After deduplication: {len(unique_podcasts)} unique episodes")
         

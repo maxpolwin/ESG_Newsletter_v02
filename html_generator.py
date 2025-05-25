@@ -52,14 +52,15 @@ def enhanced_executive_summary(articles):
     rss_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "rss")
     email_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "email")
     academic_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "academic" or is_sciencedirect_article(a))
-    podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")  # NEW
+    podcast_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "podcast")
+    youtube_count = sum(1 for a in articles if ensure_str(a.get("source_type", "")) == "youtube")
 
-    logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {academic_count} academic papers, {podcast_count} podcasts")
+    logging.info(f"Article breakdown: {rss_count} RSS articles, {email_count} email newsletters, {academic_count} academic papers, {podcast_count} podcasts, {youtube_count} YouTube videos")
 
     # Create fallback summary
     fallback_summary = f"<p>In the last 24 hours, we found <strong>{len(articles)}</strong> articles matching your tracked keywords "
     fallback_summary += f"from <strong>{rss_count}</strong> RSS feeds, <strong>{email_count}</strong> newsletters, "
-    fallback_summary += f"from <strong>{podcast_count}</strong> podcasts, and <strong>{academic_count}</strong> academic papers.</p>"
+    fallback_summary += f"from <strong>{podcast_count}</strong> podcasts, <strong>{academic_count}</strong> academic papers, and <strong>{youtube_count}</strong> YouTube videos.</p>"
 
     try:
         # Initialize Mistral API
@@ -634,43 +635,46 @@ def generate_html(articles, keyword_counts):
                 # Build the keywords line
                 keywords_html = ""
                 for kw in keywords:
-                    keywords_html += f"<span style='display: inline-block; background-color: #BDD7D6; padding: 2px 5px; margin: 2px; border-radius: 3px;'>{ensure_str(kw)}</span> "
+                    keywords_html += f"<span style='display: inline-block; background-color: {COLORS['youtube_light']}; color: {COLORS['youtube_red']}; padding: 2px 5px; margin: 2px; border-radius: 3px;'>{ensure_str(kw)}</span> "
+
+                # Use channel name if available, otherwise 'YouTube'
+                source_badge = channel_title if channel_title else "YouTube"
+                badge_style = f"background-color: {COLORS['youtube_light']}; color: {COLORS['youtube_red']}; padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;"
 
                 article_entry = f"""
                 <tr>
                     <td style="padding: 0 0 20px 0;">
-                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #FFF0F0; border-radius: 8px; border-left: 4px solid #FF0000;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: {COLORS['youtube_light']}; border-radius: 8px; border-left: 4px solid {COLORS['youtube_red']};">
                             <tr>
                                 <td style="padding: 15px;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
                                         <h3 style="margin: 0; font-family: Arial, sans-serif; font-size: 16px;">
-                                            <a href="{link}" style="color: #FF0000; text-decoration: none;">🎥 {title}</a>
+                                            <a href=\"{link}\" style=\"color: {COLORS['youtube_red']}; text-decoration: none;\">🎥 {title}</a>
                                         </h3>
-                                        <span style="display: inline-block; background-color: #FFE4E4; color: #FF0000;
-                                              padding: 3px 8px; font-size: 12px; border-radius: 4px; font-weight: bold;">YouTube</span>
+                                        <span style=\"{badge_style}\">{source_badge}</span>
                                     </div>
-                                    <div style="display: flex; margin: 10px 0;">
-                                        <div style="flex: 0 0 120px; margin-right: 15px;">
-                                            <a href="{link}">
-                                                <img src="{thumbnail_url}" alt="Video thumbnail" style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;">
+                                    <div style=\"display: flex; margin: 10px 0;\">
+                                        <div style=\"flex: 0 0 120px; margin-right: 15px;\">
+                                            <a href=\"{link}\">
+                                                <img src=\"{thumbnail_url}\" alt=\"Video thumbnail\" style=\"width: 120px; height: 68px; object-fit: cover; border-radius: 4px;\">
                                             </a>
                                         </div>
-                                        <div style="flex: 1;">
-                                            <div style="font-family: Arial, sans-serif; font-size: 13px; color: #666; margin-bottom: 5px;">
+                                        <div style=\"flex: 1;\">
+                                            <div style=\"font-family: Arial, sans-serif; font-size: 13px; color: #666; margin-bottom: 5px;\">
                                                 {channel_title}
                                             </div>
-                                            <div style="font-family: Arial, sans-serif; font-size: 13px; color: #666; margin-bottom: 5px;">
+                                            <div style=\"font-family: Arial, sans-serif; font-size: 13px; color: #666; margin-bottom: 5px;\">
                                                 Duration: {duration} | Views: {view_count}
                                             </div>
-                                            <div style="font-family: Arial, sans-serif; font-size: 13px; color: #666;">
+                                            <div style=\"font-family: Arial, sans-serif; font-size: 13px; color: #666;\">
                                                 Published: {pub_date}
                                             </div>
                                         </div>
                                     </div>
-                                    <div style="margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
+                                    <div style=\"margin: 10px 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;\">
                                         {snippet}
                                     </div>
-                                    <div style="font-family: Arial, sans-serif; font-size: 12px; color: #5E9E9A;">
+                                    <div style=\"font-family: Arial, sans-serif; font-size: 12px; color: {COLORS['youtube_red']};\">
                                         Keywords: {keywords_html}
                                     </div>
                                 </td>
@@ -751,6 +755,17 @@ def generate_html(articles, keyword_counts):
             color: var(--color-primary-light);
         }
     }
+
+    /* Add to dark mode styles */
+    @media (prefers-color-scheme: dark) {
+        img {
+            filter: brightness(0.8) contrast(1.2);
+        }
+        
+        .youtube-thumbnail {
+            filter: brightness(0.9) contrast(1.1);
+        }
+    }
     """
 
     # Combine all sections to create the complete HTML document - mixing modern framework with original article rendering
@@ -817,17 +832,69 @@ def generate_html(articles, keyword_counts):
                 width: 100% !important;
             }}
         }}
-        /* Dark mode for supported clients */
+        /* Enhanced Dark Mode Styles */
         @media (prefers-color-scheme: dark) {{
             body {{
-                background-color: #232323;
-                color: #f0f0f0;
+                background-color: var(--dark-background);
+                color: var(--dark-text);
             }}
             .container {{
-                background-color: #2a2a2a;
+                background-color: var(--dark-background-alt);
+            }}
+            .header {{
+                background-color: var(--dark-primary);
+                color: var(--dark-text);
             }}
             .executive-summary-container {{
-                background-color: #333333;
+                background-color: var(--dark-card-background);
+                border-left-color: var(--dark-primary);
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            }}
+            /* Article Cards */
+            table[role="presentation"] {{
+                background-color: var(--dark-card-background) !important;
+                border-color: var(--dark-border) !important;
+            }}
+            /* Links */
+            a {{
+                color: var(--dark-link) !important;
+            }}
+            a:hover {{
+                color: var(--dark-link-hover) !important;
+            }}
+            /* Badges and Tags */
+            span[style*="background-color"] {{
+                background-color: var(--dark-primary-light) !important;
+                color: var(--dark-text) !important;
+            }}
+            /* Keywords */
+            .keyword-tag {{
+                background-color: var(--dark-primary-light) !important;
+                color: var(--dark-text) !important;
+            }}
+            /* Specific Content Types */
+            /* Academic Papers */
+            .academic-card {{
+                background-color: var(--dark-card-background) !important;
+                border-left-color: var(--dark-primary) !important;
+            }}
+            /* Email Newsletters */
+            .email-card {{
+                background-color: var(--dark-card-background) !important;
+            }}
+            /* Podcasts */
+            .podcast-card {{
+                background-color: var(--dark-card-background) !important;
+            }}
+            /* YouTube Videos */
+            .youtube-card {{
+                background-color: var(--dark-card-background) !important;
+                border-left-color: var(--dark-accent) !important;
+            }}
+            /* Footer */
+            .footer {{
+                background-color: var(--dark-background-alt);
+                color: var(--dark-text-light);
             }}
         }}
     </style>
@@ -859,6 +926,12 @@ def generate_html(articles, keyword_counts):
         <header class="header" role="banner">
             <h1>Latest Relevant Articles</h1>
             <p> </p>
+            <div class="theme-toggle">
+                <button id="dark-mode-toggle" aria-label="Toggle dark mode">
+                    <span class="light-icon">🌞</span>
+                    <span class="dark-icon">🌙</span>
+                </button>
+            </div>
         </header>
 
         <!-- Executive Summary Section -->

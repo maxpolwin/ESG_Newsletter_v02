@@ -136,7 +136,8 @@ TIME_THRESHOLD = 24 * 3600  # 24 hours in seconds - for RSS and email collection
 CLEANUP_THRESHOLD = 2  # Days - for email cleanup
 
 # Deduplication settings
-ENABLE_DEDUPLICATION = True  # Master switch for deduplication
+DEDUPLICATION_ENABLED = False  # Master switch to enable/disable deduplication logic everywhere
+ENABLE_DEDUPLICATION = False  # Master switch for deduplication (legacy, for backward compatibility)
 DEDUPLICATION_WINDOW_DAYS = 30  # How far back to check for duplicates
 DEDUPLICATION_METHOD = "strict"  # Options: "strict" (exact match) or "fuzzy" (similar content)
 
@@ -153,6 +154,22 @@ COLORS = {
     "text_medium": "#444444",
     "text_light": "#666666",
     "accent": "#5E9E9A",
+    "youtube_red": "#FF0000",
+    "youtube_light": "#FFE4E4",
+    "dark_mode": {
+        "background": "#1a1a1a",
+        "background_alt": "#2a2a2a",
+        "text_dark": "#f0f0f0",
+        "text_medium": "#e0e0e0",
+        "text_light": "#b0b0b0",
+        "primary": "#00a39e",  # Slightly brighter for dark mode
+        "primary_light": "#004d4a",
+        "accent": "#4a8a86",
+        "border": "#404040",
+        "card_background": "#333333",
+        "link": "#66b3b0",
+        "link_hover": "#99c9c7"
+    }
 }
 
 # Import keywords from separate file - using absolute path
@@ -180,10 +197,13 @@ RSS_FEEDS = [
     "https://utorontopress.com/feed/",
     "https://wcd.copernicus.org/xml/rss2_0.xml",
     "https://www.livescience.com/feeds/all",
+    "https://kluwerlawonline.com/feeds/AllJournals",
+    "https://bsky.app/profile/did:plc:ngv3q2q4lusx6crjbwj46kcm/rss",
    # "https://www.generali.com/.rest/rss/v1/feed?name=pressReleases",
     "https://www.destatis.de/SiteGlobals/Functions/RSSFeed/DE/RSSNewsfeed/Aktuell.xml",
     "https://rss.sueddeutsche.de/alles",
     "https://think.ing.com/rss",
+    "https://bsky.app/profile/did:plc:s7nqwivai73zfz54tsscbr2d/rss",
     "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science",
     "https://www.ncei.noaa.gov/access/monitoring/monthly-report/rss.xml",
     "https://www.hec.edu/en/knowledge/feed.xml",
@@ -260,12 +280,26 @@ RSS_FEEDS = [
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Massnahmen.xml",
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/rssnewsfeed.xml",
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/rssnewsfeed.xml",
+    "https://direct.mit.edu/rss/site_1000041/LatestOpenIssueArticles_1000023.xml",
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Aufsicht.xml",
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Massnahmen.xml",
     "https://www.bafin.de/DE/Service/TopNavigation/RSS/_function/RSS_Angebotsausschreibung.xml",
     "https://www.europarl.europa.eu/rss/doc/press-releases/en.xml",
     "https://www.finanzen.net/rss/analysen",
+    "https://www.europarl.europa.eu/rss/doc/top-stories/en.xml",
+    "https://www.europarl.europa.eu/rss/doc/agendas-news/en.xml",
+    "https://bsky.app/profile/did:plc:7d33vjrei7fz3tlxbrgdnt37/rss",
     "https://www.europarl.europa.eu/rss/doc/last-news-committees/en.xml",
+    "https://www.europarl.europa.eu/rss/doc/plenary/en.xml",
+    "https://direct.mit.edu/rss/site_1000097/1000051.xml",
+    "https://www.europarl.europa.eu/rss/doc/last-news-committees/en.xml",
+    "https://www.europarl.europa.eu/rss/doc/agendas-committees/en.xml",
+    "https://direct.mit.edu/rss/site_1000065/LatestOpenIssueArticles_1000035.xml",
+    "https://www.europarl.europa.eu/rss/doc/opinions/en.xml",
+    "https://www.europarl.europa.eu/rss/doc/publications-committees/en.xml",
+    "https://direct.mit.edu/rss/site_1000045/LatestOpenIssueArticles_1000025.xml",
+    "https://www.europarl.europa.eu/rss/committee/econ/en.xml",
+    "https://www.europarl.europa.eu/rss/doc/last-news-delegations/en.xml",
     "http://www.bankingsupervision.europa.eu/rss/press.html",
     "https://www.finanzen.net/rss/news",
     "https://www.bankingsupervision.europa.eu/rss/pub.html",
@@ -353,7 +387,7 @@ RSS_FEEDS = [
     "https://www.devex.com/news/feed.rss",
     "https://www.sfrg.org/blog-feed.xml",
     "https://sustainablefinancealliance.org/feed/",
-    "https://vitalbriefing.com/feed/",
+   # "https://vitalbriefing.com/feed/",
     "http://sustainablefinanceblog.com/feed/",
     "https://www.forrester.com/blogs/category/sustainability/sustainable-finance/feed/",
     "https://www.bloomberg.com/professional/insights/category/sustainable-finance/feed/",
@@ -362,7 +396,6 @@ RSS_FEEDS = [
     "https://www.bundesbank.de/service/rss/en/633306/feed.rss",
     "https://www.bundesbank.de/service/rss/en/633296/feed.rss",
     "https://www.bundesbank.de/service/rss/en/633312/feed.rss",
-    "https://global.oup.com/academic/connect/rss/",
     "https://rss.arxiv.org/rss/q-fin.EC",
     "https://rss.arxiv.org/rss/econ",
     "https://rss.arxiv.org/rss/q-fin.RM",
@@ -383,7 +416,6 @@ RSS_FEEDS = [
     "https://www.climatesolutions.org/rss/climatecast",
     "https://www.climatesolutions.org/rss/newenergycities",
     "http://feeds.nature.com/nclimate/rss/aop",
-    "http://ec.europa.eu/environment/integration/research/newsalert/latest_alerts.htm",
     "http://feeds.rsc.org/rss/ee",
     "http://feeds.rsc.org/rss/ya",
     "https://www.climatesolutions.org/rss/nwbiocarbon",
@@ -436,6 +468,7 @@ RSS_FEEDS = [
     "https://www.bmas.de/SiteGlobals/Functions/RSSFeed/DE/RSSNewsfeed/RSSNewsfeed.xml",
     "https://www.eba.europa.eu/news-press/news/rss.xml",
     "https://www.esrb.europa.eu/rss/press.xml",
+    "https://daily.jstor.org/feed/",
     "https://www.esrb.europa.eu/rss/pub.rss",
     "https://jacobin.com/rss",
     "https://www.mckinsey.com/insights/rss",
@@ -467,7 +500,7 @@ RSS_FEEDS = [
    #"https://www.dfg.de/service/rss/de/323556/feed.rss",
    #"https://www.dfg.de/service/rss/en/324778/feed.rss",
     "https://www.esma.europa.eu/rss.xml",
-    "https://ec.europa.eu/newsroom/eiopa/feed?item_type_id=1736&lang=en&orderby=item_date",
+    "https://iopscience.iop.org/journal/rss/1748-9326",
     "https://ec.europa.eu/newsroom/eiopa/feed?item_type_id=1737&lang=en&orderby=item_date",
     "https://www.bankingsupervision.europa.eu/rss/pub.html",
     "https://hudoc.echr.coe.int/app/transform/rss?library=echrengpress&query=contentsitename:ECHR%20AND%20doctype=PR&sort=kpdate%20Descending&start=0&length=20&rankingModelId=11111111-0000-0000-0000-000000000000",
@@ -528,11 +561,12 @@ RSS_FEEDS = [
     "https://rss.nytimes.com/services/xml/rss/nyt/MostViewed.xml",
     "https://www.nytimes.com/svc/collections/v1/publish/www.nytimes.com/column/ezra-klein/rss.xml",
     "https://restofworld.org/feed/latest",
-    "https://news.mit.edu/rss/feed",
+    #"https://news.mit.edu/rss/feed",
     "https://news.mit.edu/rss/research",
     "https://news.mit.edu/rss/campus",
     "https://news.mit.edu/rss/topic/climate-change-and-sustainability",
     "https://news.mit.edu/rss/topic/earth-and-atmospheric-sciences",
+    "https://www.europarl.europa.eu/rss/doc/top-stories/en.xml",
     "https://news.mit.edu/rss/topic/economics",
     "https://news.mit.edu/rss/topic/environment",
     "https://news.mit.edu/rss/topic/energy",

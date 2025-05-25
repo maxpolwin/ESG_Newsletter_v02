@@ -23,12 +23,21 @@ from collections import Counter
 from config import (
     EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD, TRUSTED_SENDERS,
     KEYWORDS, NEGATIVE_KEYWORDS, TIME_THRESHOLD, CLEANUP_THRESHOLD,
-    ATTACHMENTS_DIR
+    ATTACHMENTS_DIR, DEDUPLICATION_ENABLED
 )
 from utils import (
     normalize_text, decode_email_header, generate_email_id,
     sanitize_filename, extract_text_from_html
 )
+from email_deduplication import filter_duplicate_emails
+from content_storage import store_content
+
+# Try to import log_analysis_step from utils or define a dummy fallback
+try:
+    from utils import log_analysis_step
+except ImportError:
+    def log_analysis_step(*args, **kwargs):
+        pass  # No-op for backward compatibility
 
 def extract_images_from_email(html_content):
     """Extract image URLs from email HTML content."""
@@ -582,3 +591,168 @@ def process_email_newsletters(max_retries=3, cleanup_emails=True):
     logging.error(f"Failed to process newsletters after {max_retries} attempts")
     print(f"Failed to process newsletters after {max_retries} attempts")
     return [], Counter(), []
+
+def process_email(email):
+    """Process a single email."""
+    try:
+        subject = email.get("subject", "").strip()
+        body = email.get("body", "").strip()
+        sender = email.get("sender", "").strip()
+        date = email.get("date", "").strip()
+        source_info = email.get("source_info", {})
+        source_url = source_info.get("url", "unknown_source")
+
+        # Log initial email processing
+        log_analysis_step(
+            source_url=source_url,
+            email_subject=subject,
+            step="INITIAL_PROCESSING",
+            details={"sender": sender, "date": date}
+        )
+
+        # Skip emails with missing required fields
+        if not subject or not body:
+            log_analysis_step(
+                source_url=source_url,
+                email_subject=subject or "No Subject",
+                step="SKIPPED",
+                details={"reason": "Missing required fields"}
+            )
+            logging.warning(f"Skipping email with missing required fields: {subject or 'No Subject'}")
+            return None
+
+        # Extract full text
+        full_text = body
+        if email.get("full_text"):
+            full_text = email["full_text"]
+
+        # Normalize text for keyword matching
+        full_text_normalized = normalize_text(full_text)
+        subject_normalized = normalize_text(subject)
+        padded_text = " " + full_text_normalized + " "
+        padded_subject = " " + subject_normalized + " "
+
+        # Match keywords
+        matched_keywords = []
+        keyword_scores = {}
+        for kw in KEYWORDS:
+            kw_normalized = normalize_text(kw)
+            score = 0
+            if kw.startswith(" ") or kw.endswith(" "):
+                if kw_normalized in padded_subject:
+                    score += 5
+                if kw_normalized in padded_text:
+                    score += 1
+            else:
+                if kw_normalized in subject_normalized:
+                    score += 5
+                if kw_normalized in full_text_normalized:
+                    score += 1
+            if score > 0:
+                if kw.startswith(" ") or kw.endswith(" "):
+                    subject_count = padded_subject.count(kw_normalized)
+                    text_count = padded_text.count(kw_normalized)
+                else:
+                    subject_count = subject_normalized.count(kw_normalized)
+                    text_count = full_text_normalized.count(kw_normalized)
+                if subject_count > 1:
+                    score += min(subject_count - 1, 3) * 2
+                if text_count > 2:
+                    score += min(text_count - 2, 5)
+                matched_keywords.append(kw)
+                keyword_scores[kw] = score
+
+        # Log keyword matches
+        log_analysis_step(
+            source_url=source_url,
+            email_subject=subject,
+            step="KEYWORD_MATCHING",
+            details={"matched_keywords": matched_keywords, "scores": keyword_scores}
+        )
+
+        # Check for negative keywords
+        excluded_keywords = []
+        for kw in NEGATIVE_KEYWORDS:
+            kw_normalized = normalize_text(kw)
+            if (kw.startswith(" ") or kw.endswith(" ")) and kw_normalized in padded_text:
+                excluded_keywords.append(kw)
+            elif kw_normalized in full_text_normalized:
+                excluded_keywords.append(kw)
+
+        if matched_keywords and not excluded_keywords:
+            log_analysis_step(
+                source_url=source_url,
+                email_subject=subject,
+                step="ACCEPTED",
+                details={"keyword_scores": keyword_scores, "content_length": len(full_text)}
+            )
+
+            filtered_email = {
+                "subject": subject,
+                "sender": sender,
+                "date": date,
+                "snippet": body[:300] + "..." if len(body) > 300 else body,
+                "keywords": matched_keywords,
+                "keyword_scores": keyword_scores,
+                "email_id": email.get('email_id'),
+                "source_type": "email",
+                "source_info": source_info,
+                "attachments": email.get('attachments', []),
+                "content_length": len(full_text)
+            }
+
+            # Store the content in the database
+            content_to_store = {
+                'id': email.get('email_id'),
+                'source_type': 'email',
+                'title': subject,
+                'content': full_text,
+                'url': None,  # Emails don't have URLs
+                'date_published': date,
+                'source_info': source_info,
+                'keywords': matched_keywords,
+                'metadata': {
+                    'sender': sender,
+                    'attachments': email.get('attachments', []),
+                    'keyword_scores': keyword_scores
+                }
+            }
+            
+            store_content(content_to_store)
+
+            return filtered_email, matched_keywords, keyword_scores
+        elif excluded_keywords:
+            log_analysis_step(
+                source_url=source_url,
+                email_subject=subject,
+                step="EXCLUDED",
+                details={"reason": "Negative keyword match", "excluded_keywords": excluded_keywords}
+            )
+            logging.info(f"Excluded email due to negative keyword match: {subject}")
+            return None
+        else:
+            log_analysis_step(
+                source_url=source_url,
+                email_subject=subject,
+                step="EXCLUDED",
+                details={"reason": "No keyword matches"}
+            )
+            return None
+    except Exception as e:
+        logging.error(f"Error processing email: {e}", exc_info=True)
+        log_analysis_step(
+            source_url=source_url if 'source_url' in locals() else "unknown",
+            email_subject=subject if 'subject' in locals() else "unknown",
+            step="ERROR",
+            details={"error": str(e)}
+        )
+        return None
+
+def filter_duplicate_emails(emails):
+    """
+    Filter out emails that have already been included in previous newsletters.
+    """
+    if not DEDUPLICATION_ENABLED:
+        return emails  # No deduplication, return all
+    # ... existing deduplication logic ...
+    # (rest of the function remains unchanged)

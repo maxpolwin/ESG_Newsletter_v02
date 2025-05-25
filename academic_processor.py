@@ -8,6 +8,7 @@ using the Semantic Scholar API.
 Author: Max Polwin
 """
 
+import re
 import requests
 import logging
 import datetime
@@ -18,7 +19,17 @@ from collections import Counter
 import PyPDF2
 from mistral import MistralAPI  # Ensure this import is at the top of your file
 import json
+from content_storage import store_content
 
+# Try to import log_analysis_step from utils or define a dummy fallback
+try:
+    from utils import log_analysis_step
+except ImportError:
+    def log_analysis_step(*args, **kwargs):
+        pass  # No-op for backward compatibility
+
+from utils import normalize_text
+from config import NEGATIVE_KEYWORDS, DEDUPLICATION_ENABLED
 
 # Import configuration
 from config import KEYWORDS, CACHE_DIR
@@ -213,8 +224,8 @@ def search_papers_by_keyword(keyword, days_ago=3, fields=None, request_number=No
     days_ago = ensure_int(days_ago, 1)
 
     if fields is None:
-        fields = ["paperId", "title", "abstract", "url", "venue", "year",
-                 "authors", "publicationDate", "citationCount",
+        fields = ["paperId", "title", "abstract", "url", "venue", "publicationVenue", "year",
+                 "authors", "publicationDate", "citationCount", "openAccessPdf",
                  "tldr", "fieldsOfStudy", "references", "influentialCitationCount"]
 
     # Calculate exact cutoff time - precisely 24 hours ago (or days_ago * 24 hours)
@@ -467,10 +478,18 @@ def enrich_paper_data(paper):
     # Extract from abstract if available
     abstract_text = ensure_str(paper.get("abstract", ""))
     if abstract_text:
+        # Remove Microsoft Word HTML formatting artifacts
+        abstract_text = re.sub(r'p class="MsoNormal"', '', abstract_text)
         # Check which of our tracked keywords appear in the abstract
         for kw in KEYWORDS:
             if ensure_str(kw).lower() in abstract_text.lower():
                 paper_keywords.append(kw)
+        # Check which of our tracked keywords appear in the title
+        if not paper_keywords and paper.get("title"):
+            for kw in KEYWORDS:
+                if ensure_str(kw).lower() in ensure_str(paper.get("title", "")).lower():
+                    paper_keywords.append(kw)
+        # Check which of our tracked keywords appear in the fieldsOfStudy
     # If no abstract, try to match keywords in title
     elif paper.get("title"):
         for kw in KEYWORDS:
@@ -565,6 +584,7 @@ def generate_ai_abstract(paper):
             f"Citations: {citation_count}\n"
             f"URL: {paper_url}\n\n"
             f"Instructions:\n"
+            f"Visit the following URLs and analyse the attached PDF to generate the abstract: {openAccessPdf}\n and {publicationVenue}\n"
             f"- Use any available information from the metadata and the URL (if accessible) to generate the abstract.\n"
             f"- The abstract should cover the likely purpose, methodology, main findings, and significance of the work.\n"
             f"- Write in a formal academic style. Do not invent specific results if they are not available.\n"
@@ -638,157 +658,271 @@ def filter_duplicate_articles(papers, history):
     """
     Filter out articles that have been included in previous newsletters.
     """
+    if not DEDUPLICATION_ENABLED:
+        return papers  # No deduplication, return all
     filtered_papers = []
     duplicate_count = 0
-    
     for paper in papers:
         paper_id = paper.get('paperId')
         if paper_id and paper_id not in history:
             filtered_papers.append(paper)
         else:
             duplicate_count += 1
-            
     if duplicate_count > 0:
         logging.info(f"Filtered out {duplicate_count} duplicate articles")
-        
     return filtered_papers
 
 
-def process_academic_papers(days_lookback=3, process_all=True): # changed from process_all=False to process_all=True
-
-    """
-    Process academic papers for the newsletter.
-    Now includes duplicate checking against newsletter history.
-    
-    Args:
-        days_lookback (int): Number of days to look back for papers
-        process_all (bool): If True (default), process all keywords. If False, limit to 10 keywords
-    """
+def process_academic_papers(days_lookback=3, process_all=False):
     global RATE_LIMIT_DELAY, api_call_times
-
-    # Reset timing data for a fresh start
     api_call_times = []
     start_time = time.time()
-
     logging.info(f"Fetching academic papers from Semantic Scholar (last {days_lookback} day(s))...")
     debug_print("\n" + "*"*40, 1)
     debug_print(f"STARTING SEMANTIC SCHOLAR API PROCESSING - LAST {days_lookback*24} HOURS", 1)
     debug_print("*"*40, 1)
     debug_print(f"Fetching academic papers published in the last {days_lookback*24} hours...", 1)
-
     # Get newsletter history
-    history = get_newsletter_history()
-    logging.info(f"Loaded {len(history)} articles from newsletter history")
-
+    history = get_newsletter_history() if DEDUPLICATION_ENABLED else set()
+    if DEDUPLICATION_ENABLED:
+        logging.info(f"Loaded {len(history)} articles from newsletter history")
+    else:
+        logging.info("DEDUPLICATION_ENABLED is False: deduplication is disabled, all papers will be processed.")
     all_papers = []
     keyword_counts = Counter()
-
-    # Convert the set of keywords to a list
     keywords_list = list(KEYWORDS)
-
-    # Only print detailed keyword list at higher debug levels
     debug_print(f"\nTRACKING {len(keywords_list)} KEYWORDS", 1)
     if DEBUG_LEVEL >= 2:
-        for i, kw in enumerate(keywords_list[:5]):  # Show just first 5 at most
+        for i, kw in enumerate(keywords_list[:5]):
             debug_print(f"  {i+1}. '{ensure_str(kw)}'", 2)
         if len(keywords_list) > 5:
             debug_print(f"  ... and {len(keywords_list) - 5} more", 2)
-
-    # Determine which keywords to process
     if not process_all:
-        # Limit to 10 keywords to avoid excessive API calls
-        keywords_to_process = keywords_list[:1] if len(keywords_list) > 10 else keywords_list #limit to 1 keyword
+        keywords_to_process = keywords_list[:1] if len(keywords_list) > 10 else keywords_list
         logging.info(f"Processing {len(keywords_to_process)} keywords (limited to 10)")
         debug_print(f"\nProcessing {len(keywords_to_process)} keywords (limited to 10)", 1)
     else:
-        # Process all keywords
         keywords_to_process = keywords_list
         logging.info(f"Processing all {len(keywords_to_process)} keywords")
         debug_print(f"\nProcessing all {len(keywords_to_process)} keywords", 1)
-
-    # Calculate the delay between API calls to fit within 2.5 hours
     num_keywords = len(keywords_to_process)
-    
     if num_keywords <= 1:
-        RATE_LIMIT_DELAY = 5  # Default delay for single keyword
+        RATE_LIMIT_DELAY = 5
     else:
-        # Calculate maximum possible delay to fit within 2.5 hours
         max_delay = MAX_TOTAL_TIME_SECONDS / (num_keywords - 1)
-        
-        # Calculate minimum delay needed for rate limiting
         min_delay = 60 / MAX_CALLS_PER_MINUTE
-        
-        # Use the smaller of the two delays
         RATE_LIMIT_DELAY = min(max_delay, min_delay)
-        
-        # Ensure we don't go below minimum safety delay
         RATE_LIMIT_DELAY = max(RATE_LIMIT_DELAY, MIN_SECONDS_BETWEEN_CALLS)
-
     debug_print(f"\nTIME LIMIT CONFIGURATION:", 1)
     debug_print(f"Maximum total time: {MAX_TOTAL_TIME_MINUTES} minutes", 1)
     debug_print(f"Number of keywords to process: {num_keywords}", 1)
     debug_print(f"Initial delay between calls: {RATE_LIMIT_DELAY:.2f} seconds", 1)
     debug_print(f"Estimated total time: {(RATE_LIMIT_DELAY * (num_keywords - 1)) / 60:.1f} minutes", 1)
-
-    # Process each keyword with time limit check
     for i, keyword in enumerate(keywords_to_process):
-        # Check if we're approaching the time limit
         current_time = time.time()
         elapsed_time = current_time - start_time
         remaining_time = MAX_TOTAL_TIME_SECONDS - elapsed_time
-
         if remaining_time < 0:
             debug_print("\nWARNING: Time limit reached. Stopping processing.", 1)
             logging.warning(f"Time limit of {MAX_TOTAL_TIME_MINUTES} minutes reached. Processed {i} of {num_keywords} keywords.")
             break
-
-        # Calculate and display progress information
         progress_percent = (i / len(keywords_to_process)) * 100
         debug_print(f"\nProcessing keyword {i+1}/{len(keywords_to_process)}: '{ensure_str(keyword)}'", 1)
         debug_print(f"Progress: {progress_percent:.1f}% complete", 2)
         debug_print(f"Time elapsed: {elapsed_time/60:.1f} minutes", 2)
         debug_print(f"Time remaining: {remaining_time/60:.1f} minutes", 2)
-
-        # Process the keyword
         papers = search_papers_by_keyword(
             keyword,
             days_ago=days_lookback,
             request_number=i+1,
             total_requests=len(keywords_to_process)
         )
-
         for paper in papers:
-            # Enrich paper data
             enriched_paper = enrich_paper_data(paper)
-
-            # Check if paper is already in our list (by paperId)
             if not any(p.get("paperId") == paper.get("paperId") for p in all_papers):
-                # Check if paper has been in previous newsletters
-                if paper.get("paperId") not in history:
+                if not DEDUPLICATION_ENABLED or paper.get("paperId") not in history:
                     all_papers.append(enriched_paper)
-                    # Count keywords
                     for kw in enriched_paper["keywords"]:
                         keyword_counts[kw] += 1
                 else:
                     logging.debug(f"Skipping previously included paper: {paper.get('title', 'No title')}")
             else:
                 logging.debug(f"Skipping duplicate paper: {paper.get('title', 'No title')}")
-
-    # Update newsletter history with new articles
     new_article_ids = {paper.get("paperId") for paper in all_papers if paper.get("paperId")}
-    if new_article_ids:
+    if DEDUPLICATION_ENABLED and new_article_ids:
         update_newsletter_history(new_article_ids)
-
-    # Final timing summary
     total_time = time.time() - start_time
     debug_print("\n" + "*"*40, 1)
     debug_print(f"PROCESSING COMPLETE: Found {len(all_papers)} unique academic papers", 1)
     debug_print(f"Total processing time: {total_time/60:.1f} minutes", 1)
     debug_print(f"Average time per keyword: {total_time/len(keywords_to_process):.1f} seconds", 1)
     debug_print("*"*40, 1)
-
     logging.info(f"Processed {len(all_papers)} academic papers")
     return all_papers, keyword_counts
+
+def process_article(article):
+    """Process a single academic article."""
+    try:
+        title = article.get("title", "").strip()
+        abstract = article.get("abstract", "").strip()
+        url = article.get("url", "").strip()
+        source_info = article.get("source_info", {})
+        source_url = source_info.get("url", "unknown_source")
+        doi = article.get("doi", "").strip()
+
+        # Generate a unique ID using DOI if available, otherwise use title
+        article_id = doi if doi else title
+
+        # Log initial article processing
+        log_analysis_step(
+            source_url=source_url,
+            article_title=title,
+            step="INITIAL_PROCESSING",
+            details={"url": url, "doi": doi}
+        )
+
+        # Skip articles with missing required fields
+        if not title or not abstract:
+            log_analysis_step(
+                source_url=source_url,
+                article_title=title or "No Title",
+                step="SKIPPED",
+                details={"reason": "Missing required fields"}
+            )
+            logging.warning(f"Skipping article with missing required fields: {title or 'No Title'}")
+            return None
+
+        # Extract full text if available
+        full_text = abstract
+        if article.get("full_text"):
+            full_text = article["full_text"]
+
+        # Normalize text for keyword matching
+        full_text_normalized = normalize_text(full_text)
+        title_normalized = normalize_text(title)
+        padded_text = " " + full_text_normalized + " "
+        padded_title = " " + title_normalized + " "
+
+        # Match keywords
+        matched_keywords = []
+        keyword_scores = {}
+        for kw in KEYWORDS:
+            kw_normalized = normalize_text(kw)
+            score = 0
+            if kw.startswith(" ") or kw.endswith(" "):
+                if kw_normalized in padded_title:
+                    score += 5
+                if kw_normalized in padded_text:
+                    score += 1
+            else:
+                if kw_normalized in title_normalized:
+                    score += 5
+                if kw_normalized in full_text_normalized:
+                    score += 1
+            if score > 0:
+                if kw.startswith(" ") or kw.endswith(" "):
+                    title_count = padded_title.count(kw_normalized)
+                    text_count = padded_text.count(kw_normalized)
+                else:
+                    title_count = title_normalized.count(kw_normalized)
+                    text_count = full_text_normalized.count(kw_normalized)
+                if title_count > 1:
+                    score += min(title_count - 1, 3) * 2
+                if text_count > 2:
+                    score += min(text_count - 2, 5)
+                matched_keywords.append(kw)
+                keyword_scores[kw] = score
+
+        # Log keyword matches
+        log_analysis_step(
+            source_url=source_url,
+            article_title=title,
+            step="KEYWORD_MATCHING",
+            details={"matched_keywords": matched_keywords, "scores": keyword_scores}
+        )
+
+        # Check for negative keywords
+        excluded_keywords = []
+        for kw in NEGATIVE_KEYWORDS:
+            kw_normalized = normalize_text(kw)
+            if (kw.startswith(" ") or kw.endswith(" ")) and kw_normalized in padded_text:
+                excluded_keywords.append(kw)
+            elif kw_normalized in full_text_normalized:
+                excluded_keywords.append(kw)
+
+        if matched_keywords and not excluded_keywords:
+            log_analysis_step(
+                source_url=source_url,
+                article_title=title,
+                step="ACCEPTED",
+                details={"keyword_scores": keyword_scores, "content_length": len(full_text)}
+            )
+
+            filtered_article = {
+                "title": title,
+                "url": url,
+                "snippet": abstract[:300] + "..." if len(abstract) > 300 else abstract,
+                "keywords": matched_keywords,
+                "keyword_scores": keyword_scores,
+                "article_id": article_id,  # Use DOI or title as ID
+                "source_type": "academic",
+                "source_info": source_info,
+                "authors": article.get('authors', []),
+                "journal": article.get('journal', ''),
+                "publication_date": article.get('publication_date', ''),
+                "doi": doi,
+                "citations": article.get('citations', 0),
+                "content_length": len(full_text)
+            }
+
+            # Store the content in the database
+            content_to_store = {
+                'id': article_id,  # Use DOI or title as ID
+                'source_type': 'academic',
+                'title': title,
+                'content': full_text,
+                'url': url,
+                'date_published': article.get('publication_date', ''),
+                'source_info': source_info,
+                'keywords': matched_keywords,
+                'metadata': {
+                    'authors': article.get('authors', []),
+                    'journal': article.get('journal', ''),
+                    'doi': doi,
+                    'citations': article.get('citations', 0),
+                    'keyword_scores': keyword_scores
+                }
+            }
+            
+            store_content(content_to_store)
+
+            return filtered_article, matched_keywords, keyword_scores
+        elif excluded_keywords:
+            log_analysis_step(
+                source_url=source_url,
+                article_title=title,
+                step="EXCLUDED",
+                details={"reason": "Negative keyword match", "excluded_keywords": excluded_keywords}
+            )
+            logging.info(f"Excluded article due to negative keyword match: {title}")
+            return None
+        else:
+            log_analysis_step(
+                source_url=source_url,
+                article_title=title,
+                step="EXCLUDED",
+                details={"reason": "No keyword matches"}
+            )
+            return None
+    except Exception as e:
+        logging.error(f"Error processing article: {e}", exc_info=True)
+        log_analysis_step(
+            source_url=source_url if 'source_url' in locals() else "unknown",
+            article_title=title if 'title' in locals() else "unknown",
+            step="ERROR",
+            details={"error": str(e)}
+        )
+        return None
 
 if __name__ == "__main__":
     # Set a more minimal debug level when running as a script
@@ -799,7 +933,7 @@ if __name__ == "__main__":
 
     try:
         # Default to processing just a subset of keywords when running as a standalone script
-        process_all_keywords = True #changed from False to True
+        process_all_keywords = False #changed from False to True
         days_to_look_back = 3  # Default to 1 day (24 hours)
 
 

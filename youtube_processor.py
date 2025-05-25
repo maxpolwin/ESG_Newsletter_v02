@@ -29,6 +29,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import wraps
 from urllib.parse import quote_plus
 import random
+from config import DEDUPLICATION_ENABLED
 
 # Import configuration and utilities
 from keywords_config import get_keywords
@@ -254,6 +255,7 @@ def search_videos(
     Returns:
         List[Dict]: List of video results
     """
+    params = None  # Initialize at the top
     try:
         api_key = get_api_key()
         
@@ -335,16 +337,19 @@ def search_videos(
             error_logger,
             "Request Exception",
             str(e),
-            {"endpoint": SEARCH_ENDPOINT, "params": params},
+            {"endpoint": SEARCH_ENDPOINT, "params": params} if params else {"endpoint": SEARCH_ENDPOINT},
             e
         )
         raise YouTubeAPIError(f"API request failed: {str(e)}")
     except Exception as e:
+        if 'quotaExceeded' in str(e):
+            print("Quota exceeded. Stopping further API calls.")
+            return []  # Return empty list instead of break
         log_api_error(
             error_logger,
             "Unexpected Error",
             str(e),
-            {"endpoint": SEARCH_ENDPOINT, "params": params},
+            {"endpoint": SEARCH_ENDPOINT, "params": params} if params else {"endpoint": SEARCH_ENDPOINT},
             e
         )
         raise
@@ -395,61 +400,50 @@ def filter_videos_by_keywords(
     
     return filtered_videos, keyword_counts
 
-def enrich_video_data(video: Dict) -> Optional[Dict]:
+def enrich_video_data(video: Dict, keywords: list = None) -> Optional[Dict]:
     """
     Enrich video data with additional formatted information.
-    
     Args:
         video (Dict): Raw video data from YouTube API
-        
+        keywords (list, optional): List of matched keywords
     Returns:
         Optional[Dict]: Enriched video data or None if enrichment fails
     """
     try:
-        # Extract basic information
         snippet = video.get('snippet', {})
-        
-        # Create enriched video dictionary
         enriched = {
             'video_id': video.get('id', {}).get('videoId'),
             'title': snippet.get('title', ''),
             'description': snippet.get('description', ''),
+            'snippet': snippet.get('description', ''),  # For HTML generator compatibility
             'channel_title': snippet.get('channelTitle', ''),
             'channel_id': snippet.get('channelId', ''),
             'pub_date': snippet.get('publishedAt', ''),
             'thumbnail_url': snippet.get('thumbnails', {}).get('high', {}).get('url', ''),
-            'link': f"https://www.youtube.com/watch?v={video.get('id', {}).get('videoId')}"
+            'link': f"https://www.youtube.com/watch?v={video.get('id', {}).get('videoId')}",
+            'keywords': keywords or [],
+            'duration': '',
+            'view_count': 0
         }
-        
         # Try to get additional video details if available
         if 'contentDetails' in video:
             duration = video['contentDetails'].get('duration', '')
-            # Convert ISO 8601 duration to readable format
-            # Example: PT1H2M10S -> 1:02:10
             if duration:
                 hours = 0
                 minutes = 0
                 seconds = 0
-                
-                # Parse duration string
                 if 'H' in duration:
                     hours = int(duration.split('H')[0].replace('PT', ''))
                 if 'M' in duration:
                     minutes = int(duration.split('M')[0].split('H')[-1])
                 if 'S' in duration:
                     seconds = int(duration.split('S')[0].split('M')[-1])
-                
-                # Format duration
                 if hours > 0:
                     enriched['duration'] = f"{hours}:{minutes:02d}:{seconds:02d}"
                 else:
                     enriched['duration'] = f"{minutes}:{seconds:02d}"
-        
-        # Add view count if available
         if 'statistics' in video:
             enriched['view_count'] = int(video['statistics'].get('viewCount', 0))
-        
-        # Format publication date
         if enriched['pub_date']:
             try:
                 pub_date = datetime.datetime.fromisoformat(
@@ -458,9 +452,31 @@ def enrich_video_data(video: Dict) -> Optional[Dict]:
                 enriched['pub_date'] = pub_date.strftime('%Y-%m-%d %H:%M:%S UTC')
             except (ValueError, TypeError):
                 pass
-        
+        content_to_store = {
+            'id': video.get('id', {}).get('videoId'),
+            'source_type': 'youtube',
+            'title': snippet.get('title', ''),
+            'content': snippet.get('description', ''),
+            'url': f"https://www.youtube.com/watch?v={video.get('id', {}).get('videoId')}",
+            'date_published': snippet.get('publishedAt', ''),
+            'source_info': {
+                'title': snippet.get('channelTitle', ''),  # Set title for source_info
+                'channel_title': snippet.get('channelTitle', ''),
+                'channel_id': snippet.get('channelId', ''),
+                'domain': 'youtube.com'
+            },
+            'keywords': keywords or [],
+            'metadata': {
+                'duration': enriched.get('duration', ''),
+                'view_count': enriched.get('view_count', 0),
+                'thumbnail_url': enriched.get('thumbnail_url', ''),
+                'channel_title': snippet.get('channelTitle', ''),
+                'channel_id': snippet.get('channelId', '')
+            }
+        }
+        from content_storage import store_content
+        store_content(content_to_store)
         return enriched
-        
     except Exception as e:
         logging.error(f"Error enriching video data: {str(e)}")
         return None
@@ -538,23 +554,53 @@ def process_videos(
         all_videos = []
         failed_keywords = []
         
-        for keyword in keywords:
-            try:
-                print(f"\nProcessing keyword: {keyword}")
-                results = search_videos(
-                    keyword=keyword,
-                    published_after=cutoff_time
-                )
-                if results:
-                    all_videos.extend(results)
-                    print(f"Found {len(results)} videos for keyword: {keyword}")
-                else:
-                    print(f"No videos found for keyword: {keyword}")
-            except Exception as e:
-                failed_keywords.append(keyword)
-                logging.error(f"Error processing keyword '{keyword}': {str(e)}")
-                print(f"Error processing keyword '{keyword}': {str(e)}")
-                continue  # Continue with next keyword
+        # Implement parallel processing for video searches
+        if use_parallel:
+            with ThreadPoolExecutor(max_workers=min(10, len(keywords))) as executor:
+                # Create future tasks for each keyword
+                future_to_keyword = {
+                    executor.submit(search_videos, keyword=keyword, published_after=cutoff_time): keyword 
+                    for keyword in keywords
+                }
+                
+                # Process results as they complete
+                for future in as_completed(future_to_keyword):
+                    keyword = future_to_keyword[future]
+                    try:
+                        results = future.result()
+                        if results:
+                            all_videos.extend(results)
+                            print(f"Found {len(results)} videos for keyword: {keyword}")
+                    except Exception as e:
+                        if 'quotaExceeded' in str(e):
+                            print("Quota exceeded. Stopping further API calls.")
+                            break
+                        failed_keywords.append(keyword)
+                        logging.error(f"Error processing keyword '{keyword}': {str(e)}")
+                        print(f"Error processing keyword '{keyword}': {str(e)}")
+                        continue
+        else:
+            # Existing sequential processing code
+            for keyword in keywords:
+                try:
+                    print(f"\nProcessing keyword: {keyword}")
+                    results = search_videos(
+                        keyword=keyword,
+                        published_after=cutoff_time
+                    )
+                    if results:
+                        all_videos.extend(results)
+                        print(f"Found {len(results)} videos for keyword: {keyword}")
+                    else:
+                        print(f"No videos found for keyword: {keyword}")
+                except Exception as e:
+                    if 'quotaExceeded' in str(e):
+                        print("Quota exceeded. Stopping further API calls.")
+                        break
+                    failed_keywords.append(keyword)
+                    logging.error(f"Error processing keyword '{keyword}': {str(e)}")
+                    print(f"Error processing keyword '{keyword}': {str(e)}")
+                    continue  # Continue with next keyword
         
         if failed_keywords:
             print(f"\nFailed to process {len(failed_keywords)} keywords: {', '.join(failed_keywords)}")
@@ -565,12 +611,14 @@ def process_videos(
         # Remove duplicates based on video ID
         seen_ids = set()
         unique_videos = []
-        
-        for video in all_videos:
-            video_id = video["id"]["videoId"]
-            if video_id not in seen_ids:
-                seen_ids.add(video_id)
-                unique_videos.append(video)
+        if DEDUPLICATION_ENABLED:
+            for video in all_videos:
+                video_id = video["id"]["videoId"]
+                if video_id not in seen_ids:
+                    seen_ids.add(video_id)
+                    unique_videos.append(video)
+        else:
+            unique_videos = all_videos  # No deduplication, keep all
         
         print(f"After deduplication: {len(unique_videos)} unique videos")
         
@@ -587,10 +635,13 @@ def process_videos(
         )
         print(f"Keyword-matching videos: {len(filtered_videos)}")
         
-        # Enrich video data
+        # Enrich video data and attach matched keywords
         enriched_videos = []
         for video in filtered_videos:
-            enriched_video = enrich_video_data(video)
+            title = video.get('snippet', {}).get('title', '').lower()
+            description = video.get('snippet', {}).get('description', '').lower()
+            matched_keywords = [kw for kw in keywords if kw.lower() in title or kw.lower() in description]
+            enriched_video = enrich_video_data(video, keywords=matched_keywords)
             if enriched_video:
                 enriched_videos.append(enriched_video)
         

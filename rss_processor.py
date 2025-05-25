@@ -30,7 +30,7 @@ import socket
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util.retry import Retry
 import ssl
 from urllib3.exceptions import InsecureRequestWarning
 import gzip
@@ -43,6 +43,8 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from logging.handlers import RotatingFileHandler
+from content_storage import store_content
+from config import DEDUPLICATION_ENABLED
 
 # For PDF processing
 try:
@@ -69,7 +71,7 @@ except ImportError:
     logging.warning("Selenium not installed. Browser automation for difficult feeds will be disabled.")
 
 # Import configuration and utilities
-from config import RSS_FEEDS, KEYWORDS, NEGATIVE_KEYWORDS, TIME_THRESHOLD
+from config import RSS_FEEDS, KEYWORDS, NEGATIVE_KEYWORDS, TIME_THRESHOLD, CACHE_DIR
 from utils import normalize_text, generate_article_id, get_domain_from_url
 
 # Suppress only the insecure request warning
@@ -1884,6 +1886,50 @@ def fetch_rss_entries(feeds_to_process=None):
 
     return entries
 
+def get_newsletter_history():
+    """
+    Get the history of articles included in previous newsletters.
+    Returns a set of article IDs that have been included before.
+    """
+    history_file = os.path.join(CACHE_DIR, "newsletter_history.json")
+    if not os.path.exists(history_file):
+        return set()
+        
+    try:
+        with open(history_file, 'r') as f:
+            history_data = json.load(f)
+            return set(history_data.get('article_ids', []))
+    except Exception as e:
+        logging.error(f"Error reading newsletter history: {e}")
+        return set()
+
+def update_newsletter_history(article_ids):
+    """
+    Update the history of articles included in newsletters.
+    """
+    history_file = os.path.join(CACHE_DIR, "newsletter_history.json")
+    try:
+        # Read existing history
+        existing_history = set()
+        if os.path.exists(history_file):
+            with open(history_file, 'r') as f:
+                history_data = json.load(f)
+                existing_history = set(history_data.get('article_ids', []))
+        
+        # Add new article IDs
+        updated_history = existing_history.union(article_ids)
+        
+        # Save updated history
+        with open(history_file, 'w') as f:
+            json.dump({
+                'article_ids': list(updated_history),
+                'last_updated': datetime.now().isoformat()
+            }, f)
+            
+        logging.info(f"Updated newsletter history with {len(article_ids)} new articles")
+    except Exception as e:
+        logging.error(f"Error updating newsletter history: {e}")
+
 def filter_rss_entries(entries):
     """Filter and process RSS entries based on keyword matches and exclusions."""
     logging.info("Filtering relevant RSS entries...")
@@ -1891,11 +1937,23 @@ def filter_rss_entries(entries):
     filtered_entries = []
     keyword_counts = Counter()
 
+    # Get newsletter history for deduplication
+    history = get_newsletter_history() if DEDUPLICATION_ENABLED else set()
+    if DEDUPLICATION_ENABLED:
+        logging.info(f"Loaded {len(history)} articles from newsletter history")
+    else:
+        logging.info("DEDUPLICATION_ENABLED is False: deduplication is disabled, all entries will be processed.")
+
     # Use a ThreadPoolExecutor for parallel processing of entries
-    with ThreadPoolExecutor(max_workers=30) as executor: #increase max_workers to 30 from 10 for more parallel processing
+    with ThreadPoolExecutor(max_workers=30) as executor:
         # Submit tasks for content extraction
         future_to_entry = {}
         for entry in entries:
+            # Skip if article ID is in history (only if deduplication enabled)
+            article_id = entry.get('article_id')
+            if DEDUPLICATION_ENABLED and article_id and article_id in history:
+                logging.debug(f"Skipping previously included article: {entry.get('title', 'No title')}")
+                continue
             future = executor.submit(process_entry, entry)
             future_to_entry[future] = entry
 
@@ -1914,6 +1972,12 @@ def filter_rss_entries(entries):
             except Exception as e:
                 logging.error(f"Error processing entry {entry.get('title', 'Unknown')}: {e}")
                 traceback.print_exc()
+
+    # Update newsletter history with new articles (only if deduplication enabled)
+    if DEDUPLICATION_ENABLED:
+        new_article_ids = {entry.get('article_id') for entry in filtered_entries if entry.get('article_id')}
+        if new_article_ids:
+            update_newsletter_history(new_article_ids)
 
     # Close any browser instances
     for thread_id, browser in list(browser_pool.items()):
@@ -2002,6 +2066,7 @@ def process_entry(entry):
                     score += min(text_count - 2, 5)
                 matched_keywords.append(kw)
                 keyword_scores[kw] = score
+
         # Log keyword matches
         log_analysis_step(
             feed_url=feed_url,
@@ -2009,6 +2074,7 @@ def process_entry(entry):
             step="KEYWORD_MATCHING",
             details={"matched_keywords": matched_keywords, "scores": keyword_scores}
         )
+
         excluded_keywords = []
         for kw in NEGATIVE_KEYWORDS:
             kw_normalized = normalize_text(kw)
@@ -2016,6 +2082,7 @@ def process_entry(entry):
                 excluded_keywords.append(kw)
             elif kw_normalized in full_text_normalized:
                 excluded_keywords.append(kw)
+
         if matched_keywords and not excluded_keywords:
             log_analysis_step(
                 feed_url=feed_url,
@@ -2023,6 +2090,7 @@ def process_entry(entry):
                 step="ACCEPTED",
                 details={"keyword_scores": keyword_scores, "content_length": len(full_text)}
             )
+
             filtered_entry = {
                 "title": title,
                 "link": link,
@@ -2040,6 +2108,28 @@ def process_entry(entry):
                 "full_content": full_content['text'] if full_content and 'text' in full_content else None,
                 "attachments": attachments
             }
+
+            # Store the content in the database
+            content_to_store = {
+                'id': entry.get('article_id'),
+                'source_type': 'rss',
+                'title': title,
+                'content': full_text,
+                'url': link,
+                'date_published': entry.get('published', entry.get('updated', '')),
+                'source_info': source_info,
+                'keywords': matched_keywords,
+                'metadata': {
+                    'author': entry.get('author', ''),
+                    'categories': [tag.get('term', '') for tag in entry.get('tags', [])] if 'tags' in entry else [],
+                    'keyword_scores': keyword_scores,
+                    'attachments': attachments,
+                    'image_url': None
+                }
+            }
+            
+            store_content(content_to_store)
+
             return filtered_entry, matched_keywords, keyword_scores
         elif excluded_keywords:
             log_analysis_step(
