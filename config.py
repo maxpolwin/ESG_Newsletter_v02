@@ -136,8 +136,8 @@ TIME_THRESHOLD = 24 * 3600  # 24 hours in seconds - for RSS and email collection
 CLEANUP_THRESHOLD = 2  # Days - for email cleanup
 
 # Deduplication settings
-DEDUPLICATION_ENABLED = False  # Master switch to enable/disable deduplication logic everywhere
-ENABLE_DEDUPLICATION = False  # Master switch for deduplication (legacy, for backward compatibility)
+DEDUPLICATION_ENABLED = True  # Master switch to enable/disable deduplication logic everywhere
+ENABLE_DEDUPLICATION = True  # Master switch for deduplication (legacy, for backward compatibility)
 DEDUPLICATION_WINDOW_DAYS = 30  # How far back to check for duplicates
 DEDUPLICATION_METHOD = "strict"  # Options: "strict" (exact match) or "fuzzy" (similar content)
 
