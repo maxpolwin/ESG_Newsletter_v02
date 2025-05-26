@@ -19,7 +19,7 @@ def get_keywords():
     "EU Taxonomy", "EU-Taxonomy", "EU Taxonomy", "EU-Taxonomie", " CSRD ", " SFRD ", " NFRD ", "Sustainable Finance",
     " ESG ", "Sustainable Investment", "Omnibus", "CSDDD", "Corporate Sustainability Due Diligence Directive",
     " DNSH ", "Do No Significant Harm", "Principal Adverse Impact", " PAIs ", "(GAR)",
-    "Green Asset Ratio", "European Sustainability Reporting Standards", "ESRS",
+    "Green Asset Ratio", "European Sustainability Reporting Standards", "ESRS", "Sustainable Finance Disclosure",
     "CSR Directive Implementation Act", " CSR-RUG ", "Deutscher Nachhaltigkeitskodex",
     " DNK ", "European Green Deal", "Paris Agreement", "Climate Risk", " CBAM ",
     "EU Carbon Border Adjustment Mechanism", "EU ETS", "European Union Emissions Trading System",
@@ -35,7 +35,7 @@ def get_keywords():
     "transition path", " VSME ", "(VSME)", "ESG-Score", "ESG-Rating", " CDR ", " CRCF ", "(CRCF)", "Carbon Removal", "Carbon Farming",
     "Swiss Climate Law", "CO2 Act", "CO2-Act", "HR DD", "HR Due Diligence", "ESG Rating", " ISSB ",
     "Implied Temperature Rise as a Measure of Alignment", "ITR-Score", "ITR-Rating", "Implied Temperature Rise", "Natural Capital",
-    "Grüner Pfandbrief", "ESG-Szenarioanalyse"
+    "Grüner Pfandbrief", "ESG-Szenarioanalyse", "Join Impact Management", "Environmentally Extended Input-Output", "Sovereign Emissions Intensity", "follow the money method"
 }
 
     # Negative keywords - content containing these will be EXCLUDED
