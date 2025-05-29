@@ -15,7 +15,6 @@ import imaplib
 import email
 import logging
 import datetime
-import gc
 from bs4 import BeautifulSoup
 from collections import Counter
 

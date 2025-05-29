@@ -31,9 +31,7 @@ from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-import ssl
 from urllib3.exceptions import InsecureRequestWarning
-import gzip
 import traceback
 import threading
 from keywords_config import get_keywords
@@ -940,7 +938,181 @@ def get_random_user_agent():
     ]
     return random.choice(user_agents)
 
+# Domain-specific header configurations
+DOMAIN_HEADERS = {
+    'bis.org': {
+        'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
+        'X-Requested-With': 'XMLHttpRequest'
+    },
+    'morganstanley.com': {
+        'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
+        'X-Requested-With': 'XMLHttpRequest'
+    },
+    'think.ing.com': {
+        "Referer": "https://www.reuters.com/",
+        "Origin": "https://www.reuters.com"
+    },
+    'bloomberg.com': {
+        "Referer": "https://www.bloomberg.com/",
+        "Origin": "https://www.bloomberg.com"
+    },
+    'ft.com': {
+        "Referer": "https://www.ft.com/",
+        "Origin": "https://www.ft.com"
+    },
+    'sueddeutsche.de': {
+        "Referer": "https://www.sueddeutsche.de/",
+        "Origin": "https://www.sueddeutsche.de"
+    },
+    'sz.de': {
+        "Referer": "https://www.sueddeutsche.de/",
+        "Origin": "https://www.sueddeutsche.de"
+    },
+    'zeit.de': {
+        "Referer": "https://www.zeit.de/",
+        "Origin": "https://www.zeit.de"
+    },
+    'handelsblatt.com': {
+        "Referer": "https://www.handelsblatt.com/",
+        "Origin": "https://www.handelsblatt.com"
+    },
+    'nytimes.com': {
+        "Referer": "https://www.nytimes.com/",
+        "Origin": "https://www.nytimes.com"
+    },
+    'europa.eu': {
+        "Referer": "https://europa.eu/",
+        "Origin": "https://europa.eu"
+    },
+    'ec.europa.eu': {
+        "Referer": "https://europa.eu/",
+        "Origin": "https://europa.eu"
+    },
+    'europarl.europa.eu': {
+        "Referer": "https://europa.eu/",
+        "Origin": "https://europa.eu"
+    },
+    'nature.com': {
+        "Referer": "https://www.nature.com/",
+        "Origin": "https://www.nature.com"
+    },
+    'sciencedirect.com': {
+        "Referer": "https://www.sciencedirect.com/",
+        "Origin": "https://www.sciencedirect.com"
+    },
+    'wiley.com': {
+        "Referer": "https://onlinelibrary.wiley.com/",
+        "Origin": "https://onlinelibrary.wiley.com"
+    },
+    'onlinelibrary.wiley.com': {
+        "Referer": "https://onlinelibrary.wiley.com/",
+        "Origin": "https://onlinelibrary.wiley.com"
+    },
+    'tandfonline.com': {
+        "Referer": "https://www.tandfonline.com/",
+        "Origin": "https://www.tandfonline.com"
+    },
+    'springer.com': {
+        "Referer": "https://link.springer.com/",
+        "Origin": "https://link.springer.com"
+    },
+    'link.springer.com': {
+        "Referer": "https://link.springer.com/",
+        "Origin": "https://link.springer.com"
+    },
+    'cepr.org': {
+        "Referer": "https://cepr.org/",
+        "Origin": "https://cepr.org"
+    },
+    'arxiv.org': {
+        "Referer": "https://arxiv.org/",
+        "Origin": "https://arxiv.org"
+    },
+    'dw.com': {
+        "Referer": "https://www.dw.com/",
+        "Origin": "https://www.dw.com"
+    },
+    'climate.gov': {
+        "Referer": "https://www.climate.gov/",
+        "Origin": "https://www.climate.gov"
+    },
+    'bafin.de': {
+        "Referer": "https://www.bafin.de/",
+        "Origin": "https://www.bafin.de"
+    },
+    'hoganlovells.com': {
+        "Referer": "https://www.hoganlovells.com/",
+        "Origin": "https://www.hoganlovells.com"
+    },
+    'bundesbank.de': {
+        "Referer": "https://www.bundesbank.de/",
+        "Origin": "https://www.bundesbank.de"
+    },
+    'finma.ch': {
+        "Referer": "https://www.finma.ch/",
+        "Origin": "https://www.finma.ch"
+    },
+    'snb.ch': {
+        "Referer": "https://www.snb.ch/",
+        "Origin": "https://www.snb.ch"
+    },
+    'sec.gov': {
+        "Referer": "https://www.sec.gov/",
+        "Origin": "https://www.sec.gov"
+    },
+    'fca.org.uk': {
+        "Referer": "https://www.fca.org.uk/",
+        "Origin": "https://www.fca.org.uk"
+    },
+    'esma.europa.eu': {
+        "Referer": "https://www.esma.europa.eu/",
+        "Origin": "https://www.esma.europa.eu"
+    },
+    'ecb.europa.eu': {
+        "Referer": "https://www.ecb.europa.eu/",
+        "Origin": "https://www.ecb.europa.eu"
+    },
+    'esrb.europa.eu': {
+        "Referer": "https://www.esrb.europa.eu/",
+        "Origin": "https://www.esrb.europa.eu"
+    },
+    'eba.europa.eu': {
+        "Referer": "https://www.eba.europa.eu/",
+        "Origin": "https://www.eba.europa.eu"
+    },
+    'imf.org': {
+        "Referer": "https://www.imf.org/",
+        "Origin": "https://www.imf.org"
+    },
+    'panda.org': {
+        "Referer": "https://www.panda.org/",
+        "Origin": "https://www.panda.org"
+    },
+    'eurostat': {
+        "Referer": "https://ec.europa.eu/eurostat/",
+        "Origin": "https://ec.europa.eu/eurostat"
+    },
+    'ec.europa.eu/eurostat': {
+        "Referer": "https://ec.europa.eu/eurostat/",
+        "Origin": "https://ec.europa.eu/eurostat"
+    },
+    'bdi.eu': {
+        "Referer": "https://www.bdi.eu/",
+        "Origin": "https://www.bdi.eu"
+    }
+}
+
 def get_custom_headers(feed_url):
+    """
+    Get custom headers for a feed URL based on its domain.
+    
+    Args:
+        feed_url (str): The URL of the feed
+        
+    Returns:
+        dict: Headers to use for the request
+    """
+    # Base headers that apply to all requests
     headers = {
         'User-Agent': get_random_user_agent(),
         'Accept': 'application/rss+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -949,179 +1121,13 @@ def get_custom_headers(feed_url):
     # Extract domain from feed URL
     domain = urlparse(feed_url).netloc
     
-    # Add specific headers for problematic feeds
-    if 'bis.org' in domain:
-        headers.update({
-            'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
-            'X-Requested-With': 'XMLHttpRequest'
-        })
-    elif 'morganstanley.com' in domain:
-        headers.update({
-            'Accept': 'application/xml,application/xhtml+xml,text/xml;q=0.9,*/*;q=0.8',
-            'X-Requested-With': 'XMLHttpRequest'
-        })
-    elif 'think.ing.com' in domain:
-        headers.update({
-            "Referer": "https://www.reuters.com/",
-            "Origin": "https://www.reuters.com"
-        })
-    elif "bloomberg.com" in domain:
-        headers.update({
-            "Referer": "https://www.bloomberg.com/",
-            "Origin": "https://www.bloomberg.com"
-        })
-    elif "ft.com" in domain:
-        headers.update({
-            "Referer": "https://www.ft.com/",
-            "Origin": "https://www.ft.com"
-        })
-    elif "sueddeutsche.de" in domain or "sz.de" in domain:
-        headers.update({
-            "Referer": "https://www.sueddeutsche.de/",
-            "Origin": "https://www.sueddeutsche.de"
-        })
-    elif "zeit.de" in domain:
-        headers.update({
-            "Referer": "https://www.zeit.de/",
-            "Origin": "https://www.zeit.de"
-        })
-    elif "handelsblatt.com" in domain:
-        headers.update({
-            "Referer": "https://www.handelsblatt.com/",
-            "Origin": "https://www.handelsblatt.com"
-        })
-    elif "nytimes.com" in domain:
-        headers.update({
-            "Referer": "https://www.nytimes.com/",
-            "Origin": "https://www.nytimes.com"
-        })
-    elif "europa.eu" in domain or "ec.europa.eu" in domain or "europarl.europa.eu" in domain:
-        headers.update({
-            "Referer": "https://europa.eu/",
-            "Origin": "https://europa.eu"
-        })
-    elif "nature.com" in domain:
-        headers.update({
-            "Referer": "https://www.nature.com/",
-            "Origin": "https://www.nature.com"
-        })
-    elif "sciencedirect.com" in domain:
-        headers.update({
-            "Referer": "https://www.sciencedirect.com/",
-            "Origin": "https://www.sciencedirect.com"
-        })
-    elif "wiley.com" in domain or "onlinelibrary.wiley.com" in domain:
-        headers.update({
-            "Referer": "https://onlinelibrary.wiley.com/",
-            "Origin": "https://onlinelibrary.wiley.com"
-        })
-    elif "tandfonline.com" in domain:
-        headers.update({
-            "Referer": "https://www.tandfonline.com/",
-            "Origin": "https://www.tandfonline.com"
-        })
-    elif "springer.com" in domain or "link.springer.com" in domain:
-        headers.update({
-            "Referer": "https://link.springer.com/",
-            "Origin": "https://link.springer.com"
-        })
-    elif "cepr.org" in domain:
-        headers.update({
-            "Referer": "https://cepr.org/",
-            "Origin": "https://cepr.org"
-        })
-    elif "arxiv.org" in domain:
-        headers.update({
-            "Referer": "https://arxiv.org/",
-            "Origin": "https://arxiv.org"
-        })
-    elif "dw.com" in domain:
-        headers.update({
-            "Referer": "https://www.dw.com/",
-            "Origin": "https://www.dw.com"
-        })
-    elif "climate.gov" in domain:
-        headers.update({
-            "Referer": "https://www.climate.gov/",
-            "Origin": "https://www.climate.gov"
-        })
-    elif "bafin.de" in domain:
-        headers.update({
-            "Referer": "https://www.bafin.de/",
-            "Origin": "https://www.bafin.de"
-        })
-    elif "hoganlovells.com" in domain:
-        headers.update({
-            "Referer": "https://www.hoganlovells.com/",
-            "Origin": "https://www.hoganlovells.com"
-        })
-    elif "bundesbank.de" in domain:
-        headers.update({
-            "Referer": "https://www.bundesbank.de/",
-            "Origin": "https://www.bundesbank.de"
-        })
-    elif "finma.ch" in domain:
-        headers.update({
-            "Referer": "https://www.finma.ch/",
-            "Origin": "https://www.finma.ch"
-        })
-    elif "snb.ch" in domain:
-        headers.update({
-            "Referer": "https://www.snb.ch/",
-            "Origin": "https://www.snb.ch"
-        })
-    elif "sec.gov" in domain:
-        headers.update({
-            "Referer": "https://www.sec.gov/",
-            "Origin": "https://www.sec.gov"
-        })
-    elif "fca.org.uk" in domain:
-        headers.update({
-            "Referer": "https://www.fca.org.uk/",
-            "Origin": "https://www.fca.org.uk"
-        })
-    elif "esma.europa.eu" in domain:
-        headers.update({
-            "Referer": "https://www.esma.europa.eu/",
-            "Origin": "https://www.esma.europa.eu"
-        })
-    elif "ecb.europa.eu" in domain:
-        headers.update({
-            "Referer": "https://www.ecb.europa.eu/",
-            "Origin": "https://www.ecb.europa.eu"
-        })
-    elif "esrb.europa.eu" in domain:
-        headers.update({
-            "Referer": "https://www.esrb.europa.eu/",
-            "Origin": "https://www.esrb.europa.eu"
-        })
-    elif "eba.europa.eu" in domain:
-        headers.update({
-            "Referer": "https://www.eba.europa.eu/",
-            "Origin": "https://www.eba.europa.eu"
-        })
-    elif "imf.org" in domain:
-        headers.update({
-            "Referer": "https://www.imf.org/",
-            "Origin": "https://www.imf.org"
-        })
-    elif "panda.org" in domain:
-        headers.update({
-            "Referer": "https://www.panda.org/",
-            "Origin": "https://www.panda.org"
-        })
-    elif "eurostat" in domain or "ec.europa.eu/eurostat" in domain:
-        headers.update({
-            "Referer": "https://ec.europa.eu/eurostat/",
-            "Origin": "https://ec.europa.eu/eurostat"
-        })
-    elif "bdi.eu" in domain:
-        headers.update({
-            "Referer": "https://www.bdi.eu/",
-            "Origin": "https://www.bdi.eu"
-        })
-
-    # Some feeds require specific accept headers
+    # Add domain-specific headers if they exist
+    for domain_key, domain_headers in DOMAIN_HEADERS.items():
+        if domain_key in domain:
+            headers.update(domain_headers)
+            break
+    
+    # Special handling for XML/RSS feeds
     if feed_url.endswith('.xml') or '/rss/' in feed_url or '/feed/' in feed_url or 'atom' in feed_url:
         headers.update({
             "Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.7"

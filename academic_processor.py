@@ -673,7 +673,7 @@ def filter_duplicate_articles(papers, history):
     return filtered_papers
 
 
-def process_academic_papers(days_lookback=3, process_all=False):
+def process_academic_papers(days_lookback=3, process_all=True): #changed from False to True
     global RATE_LIMIT_DELAY, api_call_times
     api_call_times = []
     start_time = time.time()
@@ -940,7 +940,7 @@ if __name__ == "__main__":
         # Check for command line arguments
         if len(sys.argv) > 1:
             if sys.argv[1].lower() == "limited":
-                process_all = False
+                process_all = True #changed from False to True
                 debug_print("Command line argument 'limited' detected - will process only 10 keywords", 1)
             elif sys.argv[1].lower() == "debug":
                 DEBUG_LEVEL = 2
