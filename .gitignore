@@ -3,9 +3,12 @@
 .env.txt
 *.env
 *.env.*
+!.env.example
 secrets.json
 credentials.json
 config_secrets.py
+**/secrets/
+**/credentials/
 
 # Python
 __pycache__/
@@ -48,6 +51,8 @@ latest_articles/
 css/
 cache/
 *.log
+*.log.*
+*.log.[0-9]*
 *.pdf
 *.docx
 *.doc
@@ -100,7 +105,7 @@ coverage.xml
 *.cover
 .hypothesis/
 
-# Sensitive information
+# Sensitive information - certificates and keys
 config/secrets.py
 config/credentials.py
 config/email_config.py
@@ -109,6 +114,9 @@ config/api_keys.py
 *.key
 *.crt
 *.csr
+*.p12
+*.pfx
+*.jks
 
 # Email specific
 email_credentials.json
@@ -121,7 +129,11 @@ api_keys.json
 tokens.json
 perplexity_api_key.txt
 openai_api_key.txt
+*_api_key.txt
+*_secret.txt
+*_token.txt
+*_credentials.txt
 
 # OS specific
 .DS_Store
-Thumbs.db 
+Thumbs.db
