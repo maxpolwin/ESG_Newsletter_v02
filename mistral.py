@@ -79,7 +79,7 @@ class MistralAPI:
                 f"{self.base_url}/chat/completions",
                 headers=headers,
                 json=data,
-                timeout=60
+                timeout=90  # Increased for PythonAnywhere proxy latency
             )
             
             # Log response details

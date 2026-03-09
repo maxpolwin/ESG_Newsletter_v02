@@ -70,6 +70,7 @@ def store_content(content_item):
     Returns:
         bool: True if successful, False otherwise
     """
+    conn = None
     try:
         conn = get_db_connection()
         with conn:
@@ -109,7 +110,7 @@ def store_content(content_item):
         logging.error(f"Error storing content item: {e}")
         return False
     finally:
-        if 'conn' in locals():
+        if conn:
             conn.close()
 
 def get_content_by_id(content_id):
@@ -122,6 +123,7 @@ def get_content_by_id(content_id):
     Returns:
         dict: The content item if found, None otherwise
     """
+    conn = None
     try:
         conn = get_db_connection()
         with conn:
@@ -135,7 +137,7 @@ def get_content_by_id(content_id):
         logging.error(f"Error retrieving content item: {e}")
         return None
     finally:
-        if 'conn' in locals():
+        if conn:
             conn.close()
 
 def get_content_by_source(source_type, limit=100, offset=0):
@@ -150,6 +152,7 @@ def get_content_by_source(source_type, limit=100, offset=0):
     Returns:
         list: List of content items
     """
+    conn = None
     try:
         conn = get_db_connection()
         with conn:
@@ -165,7 +168,7 @@ def get_content_by_source(source_type, limit=100, offset=0):
         logging.error(f"Error retrieving content by source: {e}")
         return []
     finally:
-        if 'conn' in locals():
+        if conn:
             conn.close()
 
 def search_content(query, source_type=None, limit=100, offset=0):
@@ -181,6 +184,7 @@ def search_content(query, source_type=None, limit=100, offset=0):
     Returns:
         list: List of matching content items
     """
+    conn = None
     try:
         conn = get_db_connection()
         with conn:
@@ -205,7 +209,7 @@ def search_content(query, source_type=None, limit=100, offset=0):
         logging.error(f"Error searching content: {e}")
         return []
     finally:
-        if 'conn' in locals():
+        if conn:
             conn.close()
 
 def update_content_status(content_id, status):
@@ -219,6 +223,7 @@ def update_content_status(content_id, status):
     Returns:
         bool: True if successful, False otherwise
     """
+    conn = None
     try:
         conn = get_db_connection()
         with conn:
@@ -234,7 +239,7 @@ def update_content_status(content_id, status):
         logging.error(f"Error updating content status: {e}")
         return False
     finally:
-        if 'conn' in locals():
+        if conn:
             conn.close()
 
 def cleanup_old_content(days=30):
@@ -247,6 +252,7 @@ def cleanup_old_content(days=30):
     Returns:
         int: Number of items archived
     """
+    conn = None
     try:
         conn = get_db_connection()
         with conn:
@@ -263,7 +269,7 @@ def cleanup_old_content(days=30):
         logging.error(f"Error cleaning up old content: {e}")
         return 0
     finally:
-        if 'conn' in locals():
+        if conn:
             conn.close()
 
 def get_content_stats():
@@ -273,6 +279,7 @@ def get_content_stats():
     Returns:
         dict: Statistics about the content
     """
+    conn = None
     try:
         conn = get_db_connection()
         with conn:
@@ -303,7 +310,7 @@ def get_content_stats():
         logging.error(f"Error getting content stats: {e}")
         return {}
     finally:
-        if 'conn' in locals():
+        if conn:
             conn.close()
 
 if __name__ == "__main__":

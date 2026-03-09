@@ -20,6 +20,7 @@ import PyPDF2
 from mistral import MistralAPI  # Ensure this import is at the top of your file
 import json
 from content_storage import store_content
+from config import NETWORK_CONFIG
 
 # Try to import log_analysis_step from utils or define a dummy fallback
 try:
@@ -170,7 +171,7 @@ def extract_first_paragraph_from_pdf(pdf_url):
         debug_print(f"Attempting to extract text from PDF: {pdf_url}", 2)
 
         # Download PDF
-        response = requests.get(pdf_url, timeout=120)
+        response = requests.get(pdf_url, timeout=NETWORK_CONFIG["extended_timeout"])
         file = io.BytesIO(response.content)
 
         # Extract text from first page
@@ -215,10 +216,10 @@ def search_papers_by_keyword(keyword, days_ago=3, fields=None, request_number=No
     """
     global RATE_LIMIT_DELAY, api_call_times
 
-    # Add retry constants
-    MAX_RETRIES = 4
+    # Retry constants - sourced from centralized config
+    MAX_RETRIES = NETWORK_CONFIG["retry_attempts"]
     BASE_RETRY_DELAY = 2  # Base delay for exponential backoff
-    REQUEST_TIMEOUT = 30  # Timeout in seconds for the request
+    REQUEST_TIMEOUT = NETWORK_CONFIG["default_timeout"]
 
     # Ensure days_ago is an integer
     days_ago = ensure_int(days_ago, 1)

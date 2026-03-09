@@ -29,49 +29,24 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import wraps
 
-print("[DEBUG] Before importing keywords")
-
-# Import configuration and utilities (matching ESG_Newsletter import pattern)
-# FIXED: Import the get_keywords function instead of the variables directly
+# Import configuration and utilities
 from keywords_config import get_keywords
-
-print("[DEBUG] Imported keywords module")
-
-print("[DEBUG] Before importing config/utils")
-
 from utils import normalize_text, generate_article_id
+from config import NETWORK_CONFIG
 
-print("[DEBUG] After importing config/utils")
-
-# FIXED: Load keywords using the get_keywords function
+# Load keywords using the get_keywords function
 KEYWORDS, NEGATIVE_KEYWORDS, YOUTUBE_KEYWORDS, YOUTUBE_NEGATIVE_KEYWORDS = get_keywords()
-print(f"[DEBUG] Successfully loaded {len(KEYWORDS)} keywords and {len(NEGATIVE_KEYWORDS)} negative keywords")
+logging.info(f"Podcast processor: loaded {len(KEYWORDS)} keywords and {len(NEGATIVE_KEYWORDS)} negative keywords")
 
-# Replace the dotenv import with this function
-def load_env_file():
-    """Load environment variables from .env file"""
-    try:
-        with open('.env', 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    key, value = line.split('=', 1)
-                    os.environ[key.strip()] = value.strip()
-    except FileNotFoundError:
-        print("[DEBUG] No .env file found, using system environment variables")
-    except Exception as e:
-        print(f"[DEBUG] Error loading .env file: {e}")
-
-# Replace load_dotenv() with our function
-load_env_file()
+# Environment variables are already loaded by config.py at import time
 
 # Spotify API endpoints
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 SEARCH_ENDPOINT = "https://api.spotify.com/v1/search"
 
-# Constants for request handling
-DEFAULT_TIMEOUT = 30
-RETRY_ATTEMPTS = 5
+# Constants for request handling - sourced from centralized config
+DEFAULT_TIMEOUT = NETWORK_CONFIG["default_timeout"]
+RETRY_ATTEMPTS = NETWORK_CONFIG["retry_attempts"]
 BASE_DELAY = 1  # Initial delay for exponential backoff
 
 # Language settings
@@ -80,20 +55,17 @@ MARKET_LANGUAGE_MAP = {
     "US": "en",
     "GB": "en",
     "DE": "de",
-    "AT": "de",
-    "CH": "de",
     "ES": "es",
     "FR": "fr",
-    "BE": "fr",
-    "CA": "en"  # English for Canada
 }
 
-# Define markets to search in for each language
+# Reduced markets per language to avoid excessive API calls
+# (was 11 total markets, now 5 — saves ~55% of API calls)
 LANGUAGE_MARKETS = {
-    "en": ["US", "GB", "CA", "AU", "NZ"],
-    "de": ["DE", "AT", "CH"],
+    "en": ["US", "GB"],
+    "de": ["DE"],
     "es": ["ES"],
-    "fr": ["FR", "BE"]
+    "fr": ["FR"]
 }
 
 # Rate limiting settings
@@ -259,11 +231,11 @@ def search_podcasts(
     token: str, 
     keyword: str,
     market: str,
-    limit: int = 50,
+    limit: int = 20,  # Reduced from 50 — most results are filtered out anyway
     offset: int = 0,
     include_external: str = "audio"
 ) -> List[Dict]:
-    print(f"[DEBUG] Entered search_podcasts for keyword '{keyword}' and market '{market}'")
+    logging.debug(f"[Podcast] Entered search_podcasts for keyword '{keyword}' and market '{market}'")
     try:
         headers = {
             "Authorization": f"Bearer {token}"
@@ -282,32 +254,32 @@ def search_podcasts(
         spotify_rate_limiter.wait_if_needed()
         
         # Add detailed debug logging
-        print(f"[DEBUG] Searching Spotify: keyword='{keyword}', market={market}, limit={limit}")
-        print(f"[DEBUG] Request URL: {SEARCH_ENDPOINT}")
-        print(f"[DEBUG] Request params: {params}")
+        logging.debug(f"[Podcast] Searching Spotify: keyword='{keyword}', market={market}, limit={limit}")
+        logging.debug(f"[Podcast] Request URL: {SEARCH_ENDPOINT}")
+        logging.debug(f"[Podcast] Request params: {params}")
         
         logging.debug(f"Searching Spotify: keyword='{keyword}', market={market}, limit={limit}")
         response = requests.get(SEARCH_ENDPOINT, headers=headers, params=params, timeout=DEFAULT_TIMEOUT)
         
         # Add response debugging
-        print(f"[DEBUG] Response status: {response.status_code}")
-        print(f"[DEBUG] Response headers: {dict(response.headers)}")
+        logging.debug(f"[Podcast] Response status: {response.status_code}")
+        logging.debug(f"[Podcast] Response headers: {dict(response.headers)}")
         
         # Handle Spotify-specific error codes
         if response.status_code == 401:
-            print(f"[DEBUG] Authentication error - token might be expired")
+            logging.debug(f"[Podcast] Authentication error - token might be expired")
             # Token might have expired, force refresh
             get_token_manager().get_valid_token()
             raise SpotifyAuthError("Token expired, please retry")
         elif response.status_code == 403:
             error_data = response.json()
             error_msg = error_data.get("error", {}).get("message", "Unknown error")
-            print(f"[DEBUG] Forbidden error: {error_msg}")
+            logging.debug(f"[Podcast] Forbidden error: {error_msg}")
             raise SpotifyAPIError(f"Forbidden: {error_msg}")
         elif response.status_code == 429:
             # Rate limited - retry with exponential backoff
             retry_after = int(response.headers.get("Retry-After", 30))
-            print(f"[DEBUG] Rate limited. Waiting {retry_after}s")
+            logging.debug(f"[Podcast] Rate limited. Waiting {retry_after}s")
             logging.warning(f"Rate limited by Spotify. Waiting {retry_after}s")
             time.sleep(retry_after)
             return []  # Return empty to continue without crashing
@@ -322,17 +294,17 @@ def search_podcasts(
             episode["market"] = market
         
         # Debug the response
-        print(f"[DEBUG] Response data keys: {list(data.keys())}")
-        print(f"[DEBUG] Episodes found: {len(episodes)}")
+        logging.debug(f"[Podcast] Response data keys: {list(data.keys())}")
+        logging.debug(f"[Podcast] Episodes found: {len(episodes)}")
         if episodes:
-            print(f"[DEBUG] First episode title: {episodes[0].get('name', 'No name')}")
-            print(f"[DEBUG] First episode languages: {episodes[0].get('languages', [])}")
+            logging.debug(f"[Podcast] First episode title: {episodes[0].get('name', 'No name')}")
+            logging.debug(f"[Podcast] First episode languages: {episodes[0].get('languages', [])}")
         
         logging.debug(f"Found {len(episodes)} episodes for keyword '{keyword}' in market {market}")
         return episodes
             
     except requests.exceptions.RequestException as e:
-        print(f"[DEBUG] Request exception: {str(e)}")
+        logging.debug(f"[Podcast] Request exception: {str(e)}")
         logging.error(f"Failed to search podcasts: {str(e)}")
         raise SpotifyAPIError(f"API search failed: {str(e)}")
 
@@ -527,53 +499,53 @@ def with_graceful_failure(func):
     return wrapper
 
 def search_keyword_in_markets(keyword: str, markets: List[str]) -> List[Dict]:
-    print(f"[DEBUG] Entered search_keyword_in_markets for keyword '{keyword}' and markets {markets}")
+    logging.debug(f"[Podcast] Entered search_keyword_in_markets for keyword '{keyword}' and markets {markets}")
     all_results = []
     for market in markets:
         try:
-            print(f"[DEBUG] Calling search_podcasts for keyword '{keyword}' in market '{market}'")
+            logging.debug(f"[Podcast] Calling search_podcasts for keyword '{keyword}' in market '{market}'")
             results = search_podcasts(keyword=keyword, market=market)
-            print(f"[DEBUG] search_podcasts returned {len(results)} results for market '{market}'")
+            logging.debug(f"[Podcast] search_podcasts returned {len(results)} results for market '{market}'")
             for podcast in results:
                 podcast["market"] = market
             all_results.extend(results)
         except Exception as e:
-            print(f"[DEBUG] Exception in search_keyword_in_markets for market '{market}': {e}")
+            logging.debug(f"[Podcast] Exception in search_keyword_in_markets for market '{market}': {e}")
             continue
-    print(f"[DEBUG] Exiting search_keyword_in_markets for keyword '{keyword}'")
+    logging.debug(f"[Podcast] Exiting search_keyword_in_markets for keyword '{keyword}'")
     return all_results
 
 def process_podcasts_parallel(keywords: List[str], languages: List[str]) -> List[Dict]:
-    print("[DEBUG] Entered process_podcasts_parallel")
+    logging.debug("[Podcast] Entered process_podcasts_parallel")
     all_results = []
     total_searches = 0
     for language in languages:
         total_searches += len(keywords) * len(LANGUAGE_MARKETS.get(language, []))
     if total_searches == 0:
-        print("[DEBUG] No searches to perform in process_podcasts_parallel")
+        logging.debug("[Podcast] No searches to perform in process_podcasts_parallel")
         return []
-    print(f"[DEBUG] Will perform {total_searches} searches")
+    logging.debug(f"[Podcast] Will perform {total_searches} searches")
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
         for language in languages:
             markets = LANGUAGE_MARKETS.get(language, [])
             for keyword in keywords:
-                print(f"[DEBUG] Submitting search for keyword '{keyword}' in markets {markets}")
+                logging.debug(f"[Podcast] Submitting search for keyword '{keyword}' in markets {markets}")
                 future = executor.submit(search_keyword_in_markets, keyword, markets)
                 futures.append((future, language, keyword))
         completed = 0
         for future, language, keyword in futures:
             try:
-                print(f"[DEBUG] Waiting for result of keyword '{keyword}' in language '{language}'")
+                logging.debug(f"[Podcast] Waiting for result of keyword '{keyword}' in language '{language}'")
                 results = future.result()
-                print(f"[DEBUG] Got result for keyword '{keyword}' in language '{language}': {len(results)} episodes")
+                logging.debug(f"[Podcast] Got result for keyword '{keyword}' in language '{language}': {len(results)} episodes")
                 if results:
                     all_results.extend(results)
                 completed += 1
             except Exception as e:
-                print(f"[DEBUG] Exception in future for keyword '{keyword}': {e}")
+                logging.debug(f"[Podcast] Exception in future for keyword '{keyword}': {e}")
                 completed += 1
-    print("[DEBUG] Exiting process_podcasts_parallel")
+    logging.debug("[Podcast] Exiting process_podcasts_parallel")
     return all_results
 
 def filter_podcasts_by_language(podcasts: List[Dict], allowed_languages: List[str]) -> List[Dict]:
@@ -628,7 +600,7 @@ def process_podcasts(
         process_all (bool, optional): If True, process all keywords. If False, limit to keyword_limit
         keyword_limit (int, optional): Maximum number of keywords to process when process_all is False. Defaults to 3
     """
-    print("[DEBUG] Entered process_podcasts")
+    logging.debug("[Podcast] Entered process_podcasts")
     # Log configuration
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"\n{'='*60}")

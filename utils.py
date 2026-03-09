@@ -21,6 +21,12 @@ from bs4 import BeautifulSoup
 # Import configuration
 from config import OUTPUT_DIR, CSS_DIR, COLORS
 
+def log_and_print(message, level=logging.INFO):
+    """Log a message and print it to stdout. Reduces duplicate logging/print pairs."""
+    logging.log(level, message)
+    print(message)
+
+
 def normalize_text(text):
     """Normalize text to remove inconsistencies in encoding and case."""
     if not text:
@@ -149,7 +155,7 @@ def get_domain_from_url(url):
                 else:
                     domain = '.'.join(parts[-2:])
         return domain
-    except:
+    except Exception:
         return url
 
 def create_css_file():

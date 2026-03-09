@@ -302,9 +302,12 @@ def generate_html(articles, keyword_counts):
         print(f"  {i+1}. title: {article.get('title', 'No Title')}, source_type: {article.get('source_type', 'N/A')}")
     logging.info("Generating HTML report...")
     print("Generating HTML report...")
+    # Defensive local import as safety net against module namespace issues
+    # under memory pressure on PythonAnywhere
+    from config import OUTPUT_DIR as _output_dir
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
     file_name = f"latest_articles_{timestamp}.html"
-    file_path = os.path.join(OUTPUT_DIR, file_name)
+    file_path = os.path.join(_output_dir, file_name)
 
     # Create the CSS file
     css_path = create_css_file()
