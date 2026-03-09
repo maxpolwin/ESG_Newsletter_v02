@@ -36,13 +36,9 @@ import traceback
 import threading
 from keywords_config import get_keywords
 from utils import normalize_text, generate_article_id, get_domain_from_url
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
 from logging.handlers import RotatingFileHandler
 from content_storage import store_content
-from config import DEDUPLICATION_ENABLED
+from config import DEDUPLICATION_ENABLED, NETWORK_CONFIG
 
 # For PDF processing
 try:
@@ -68,30 +64,30 @@ except ImportError:
     SELENIUM_SUPPORT = False
     logging.warning("Selenium not installed. Browser automation for difficult feeds will be disabled.")
 
-# Import configuration and utilities
+# Import configuration and utilities (note: normalize_text, generate_article_id,
+# get_domain_from_url already imported above from utils)
 from config import RSS_FEEDS, KEYWORDS, NEGATIVE_KEYWORDS, TIME_THRESHOLD, CACHE_DIR
-from utils import normalize_text, generate_article_id, get_domain_from_url
 
 # Suppress only the insecure request warning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-# Constants for request handling
-DEFAULT_TIMEOUT = 30
-EXTENDED_TIMEOUT = 120  # Increased default timeout for all feeds
-RETRY_ATTEMPTS = 5  # Increased retry attempts for all feeds
-BASE_DELAY = 5  # Increased base delay for all feeds
-POOL_CONNECTIONS = 2
-POOL_MAXSIZE = 3
+# Constants for request handling - sourced from centralized config
+DEFAULT_TIMEOUT = NETWORK_CONFIG["default_timeout"]
+EXTENDED_TIMEOUT = NETWORK_CONFIG["extended_timeout"]
+RETRY_ATTEMPTS = NETWORK_CONFIG["retry_attempts"]
+BASE_DELAY = NETWORK_CONFIG["base_delay"]
+POOL_CONNECTIONS = NETWORK_CONFIG["pool_connections"]
+POOL_MAXSIZE = NETWORK_CONFIG["pool_maxsize"]
 
 # Rate limiting settings
 RATE_LIMIT_REQUESTS = 10  # Number of requests allowed per window
 RATE_LIMIT_WINDOW = 60  # Time window in seconds
-MIN_REQUEST_INTERVAL = 0.5  # Minimum time between requests to the same domain
+MIN_REQUEST_INTERVAL = NETWORK_CONFIG["min_request_interval"]
 
 # Feed health monitoring settings
 FEED_HEALTH_WINDOW = 24 * 60 * 60  # 24 hours in seconds
 MIN_SUCCESS_RATE = 0.7  # Minimum success rate for a feed to be considered healthy
-MAX_CONSECUTIVE_FAILURES = 3000  # Maximum number of consecutive failures before marking feed as unhealthy
+MAX_CONSECUTIVE_FAILURES = 15  # Max consecutive failures before marking feed as unhealthy
 
 # New settings for enhanced functionality
 EXTRACT_FULL_CONTENT = True  # Whether to extract full article content
@@ -888,6 +884,9 @@ def create_session():
 
     # Set default timeout
     session.timeout = DEFAULT_TIMEOUT
+
+    # Enable keep-alive to reduce TCP handshake overhead on PythonAnywhere's proxy
+    session.headers.update({"Connection": "keep-alive"})
 
     return session
 
@@ -1989,7 +1988,7 @@ def filter_rss_entries(entries):
     for thread_id, browser in list(browser_pool.items()):
         try:
             browser.quit()
-        except:
+        except Exception:
             pass
 
     logging.info(f"Filtered relevant RSS articles: {len(filtered_entries)}")
@@ -2285,5 +2284,5 @@ if __name__ == "__main__":
     for thread_id, browser in list(browser_pool.items()):
         try:
             browser.quit()
-        except:
+        except Exception:
             pass

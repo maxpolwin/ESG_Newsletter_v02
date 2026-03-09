@@ -29,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import wraps
 from urllib.parse import quote_plus
 import random
-from config import DEDUPLICATION_ENABLED
+from config import DEDUPLICATION_ENABLED, NETWORK_CONFIG
 
 # Import configuration and utilities
 from keywords_config import get_keywords
@@ -40,24 +40,7 @@ from youtube_logs import (
     log_api_success, log_debug_info
 )
 
-# Load environment variables from .env file
-def load_env_file():
-    """Load environment variables from .env file"""
-    try:
-        with open('.env', 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    key, value = line.split('=', 1)
-                    os.environ[key.strip()] = value.strip()
-        print("Loaded environment variables from .env file")
-    except FileNotFoundError:
-        print("No .env file found, using system environment variables")
-    except Exception as e:
-        print(f"Error loading .env file: {e}")
-
-# Load environment variables
-load_env_file()
+# Environment variables are already loaded by config.py at import time
 
 # Load keywords
 _, _, YOUTUBE_KEYWORDS, YOUTUBE_NEGATIVE_KEYWORDS = get_keywords()
@@ -66,8 +49,8 @@ _, _, YOUTUBE_KEYWORDS, YOUTUBE_NEGATIVE_KEYWORDS = get_keywords()
 SEARCH_ENDPOINT = "https://www.googleapis.com/youtube/v3/search"
 VIDEO_ENDPOINT = "https://www.googleapis.com/youtube/v3/videos"
 
-# Constants for request handling
-DEFAULT_TIMEOUT = 30
+# Constants for request handling - sourced from centralized config
+DEFAULT_TIMEOUT = NETWORK_CONFIG["default_timeout"]
 RETRY_ATTEMPTS = 2
 BASE_DELAY = 1  # Initial delay for exponential backoff
 

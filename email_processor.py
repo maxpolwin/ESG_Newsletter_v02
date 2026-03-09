@@ -10,6 +10,7 @@ Author: Max Polwin
 
 import os
 import re
+import gc
 import time
 import imaplib
 import email
@@ -60,7 +61,7 @@ def extract_images_from_email(html_content):
                 # Skip tiny images (likely spacers or icons)
                 if width_val < 20 or height_val < 20:
                     continue
-            except:
+            except Exception:
                 # If we can't parse the dimensions, include the image anyway
                 pass
 
@@ -283,7 +284,7 @@ def fetch_email_newsletters():
             try:
                 mail.close()
                 mail.logout()
-            except:
+            except Exception:
                 pass  # Ignore errors during cleanup
 
 def filter_newsletters(newsletters):
@@ -528,7 +529,7 @@ def cleanup_old_emails(days=CLEANUP_THRESHOLD):
             try:
                 mail.close()
                 mail.logout()
-            except:
+            except Exception:
                 pass  # Ignore errors during cleanup
 
 def process_email_newsletters(max_retries=3, cleanup_emails=True):

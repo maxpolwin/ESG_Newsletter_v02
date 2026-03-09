@@ -33,9 +33,12 @@ Author: Max Polwin
 
 import sys
 import logging
+import traceback
+import json
+import os
 
 # Import modules
-from config import EMAIL_RECIPIENTS, CLEANUP_THRESHOLD
+from config import EMAIL_RECIPIENTS, CLEANUP_THRESHOLD, OUTPUT_DIR
 from rss_processor import process_rss_feeds
 from email_processor import process_email_newsletters, cleanup_old_emails
 from html_generator import generate_html
@@ -117,6 +120,25 @@ def process_all():
         for keyword, count in email_keyword_counts.items():
             all_keyword_counts[keyword] += count
 
+        # Save intermediate results as checkpoint before HTML generation
+        # This prevents data loss if HTML generation crashes
+        try:
+            checkpoint_path = os.path.join(OUTPUT_DIR, "latest_checkpoint.json")
+            checkpoint_data = {
+                "articles": [
+                    {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict, type(None))) else v
+                     for k, v in article.items()}
+                    for article in all_articles
+                ],
+                "keyword_counts": dict(all_keyword_counts),
+                "timestamp": str(datetime.datetime.utcnow()) if 'datetime' in dir() else "unknown"
+            }
+            with open(checkpoint_path, "w", encoding="utf-8") as f:
+                json.dump(checkpoint_data, f, ensure_ascii=False, default=str)
+            print(f"Saved checkpoint with {len(all_articles)} articles to {checkpoint_path}")
+        except Exception as cp_err:
+            print(f"Warning: Could not save checkpoint: {cp_err}")
+
         # Generate HTML report only if we have articles
         if all_articles:
             html_file = generate_html(all_articles, all_keyword_counts)
@@ -141,6 +163,7 @@ def process_all():
     except Exception as e:
         logging.error(f"Error in full processing: {e}", exc_info=True)
         print(f"Error in full processing: {e}")
+        traceback.print_exc()  # Print full traceback to console for PythonAnywhere debugging
         return False
 
 
