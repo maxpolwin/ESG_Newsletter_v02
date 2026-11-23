@@ -19,14 +19,9 @@ Components (now separated into modules):
 - Configuration (config.py)
 
 
-Commands:
-- all: Process RSS and email, generate report, send email
-- rss: Process only RSS feeds
-- email: Process only email newsletters
-- cleanup: Clean up old emails
-- files: Clean up old log and HTML files
-- send: Send the latest report only
-- test: Run compatibility tests
+Usage:
+    python main.py    # Runs the full pipeline (process_all): cleanup, academic,
+                      # RSS, podcasts, YouTube, email; then report and send.
 
 Author: Max Polwin
 """
@@ -36,6 +31,7 @@ import logging
 import traceback
 import json
 import os
+import datetime
 
 # Import modules
 from config import EMAIL_RECIPIENTS, CLEANUP_THRESHOLD, OUTPUT_DIR
@@ -131,7 +127,7 @@ def process_all():
                     for article in all_articles
                 ],
                 "keyword_counts": dict(all_keyword_counts),
-                "timestamp": str(datetime.datetime.utcnow()) if 'datetime' in dir() else "unknown"
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
             }
             with open(checkpoint_path, "w", encoding="utf-8") as f:
                 json.dump(checkpoint_data, f, ensure_ascii=False, default=str)
